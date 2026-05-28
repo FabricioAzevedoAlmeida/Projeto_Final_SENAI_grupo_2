@@ -40,7 +40,7 @@ void debugInfoSemLinha(const String &mensagem)
 
 void configurarDebug()
 {
-    Serial.begin(9600);
+    Serial.begin(115200);
     delay(1000);
 
     pinMode(PINO_HABILITA_DEBUG_COMPLETO, INPUT_PULLUP);

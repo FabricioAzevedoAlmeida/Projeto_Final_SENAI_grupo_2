@@ -1,0 +1,143 @@
+#include "secrets.h"
+#include <Arduino.h>
+
+const char *WIFI_SSID = "SALA 09";
+const char *WIFI_SENHA = "info@134";
+
+// TODO: Tranformar todas as constantes e  defines em
+
+//=======================================
+// MQTT
+//======================================
+
+const char *MQTT_BROKER = "fa1d3218161941a0b8d46e8951d31916.s1.eu.hivemq.cloud";
+const int MQTT_PORTA = 8883;
+
+const char *MQTT_CLIENT_ID = "esp32_luis_otavio";
+
+const char *MQTT_USUARIO = "LuisOtavio";
+const char *MQTT_SENHA = "Senai@134";
+
+const bool MQTT_USAR_TLS = true; // modo de conexao sem segurança
+
+const char MQTT_CERTIFICADO_CA[] PROGMEM = "";
+
+//=======================================
+// AWS
+//======================================
+
+const bool USAR_AWS_IOT = true;
+
+const char *AWS_IOT_CLIENT_ID = "LUIS";
+
+const char AWS_CERT_CA[] PROGMEM = R"EOF(-----BEGIN CERTIFICATE-----
+MIIDQTCCAimgAwIBAgITBmyfz5m/jAo54vB4ikPmljZbyjANBgkqhkiG9w0BAQsF
+ADA5MQswCQYDVQQGEwJVUzEPMA0GA1UEChMGQW1hem9uMRkwFwYDVQQDExBBbWF6
+b24gUm9vdCBDQSAxMB4XDTE1MDUyNjAwMDAwMFoXDTM4MDExNzAwMDAwMFowOTEL
+MAkGA1UEBhMCVVMxDzANBgNVBAoTBkFtYXpvbjEZMBcGA1UEAxMQQW1hem9uIFJv
+b3QgQ0EgMTCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBALJ4gHHKeNXj
+ca9HgFB0fW7Y14h29Jlo91ghYPl0hAEvrAIthtOgQ3pOsqTQNroBvo3bSMgHFzZM
+9O6II8c+6zf1tRn4SWiw3te5djgdYZ6k/oI2peVKVuRF4fn9tBb6dNqcmzU5L/qw
+IFAGbHrQgLKm+a/sRxmPUDgH3KKHOVj4utWp+UhnMJbulHheb4mjUcAwhmahRWa6
+VOujw5H5SNz/0egwLX0tdHA114gk957EWW67c4cX8jJGKLhD+rcdqsq08p8kDi1L
+93FcXmn/6pUCyziKrlA4b9v7LWIbxcceVOF34GfID5yHI9Y/QCB/IIDEgEw+OyQm
+jgSubJrIqg0CAwEAAaNCMEAwDwYDVR0TAQH/BAUwAwEB/zAOBgNVHQ8BAf8EBAMC
+AYYwHQYDVR0OBBYEFIQYzIU07LwMlJQuCFmcx7IQTgoIMA0GCSqGSIb3DQEBCwUA
+A4IBAQCY8jdaQZChGsV2USggNiMOruYou6r4lK5IpDB/G/wkjUu0yKGX9rbxenDI
+U5PMCCjjmCXPI6T53iHTfIUJrU6adTrCC2qJeHZERxhlbI1Bjjt/msv0tadQ1wUs
+N+gDS63pYaACbvXy8MWy7Vu33PqUXHeeE6V/Uq2V8viTO96LXFvKWlJbYK8U90vv
+o/ufQJVtMVT8QtPHRh8jrdkPSHCa2XV4cdFyQzR1bldZwgJcJmApzyMZFo6IQ6XU
+5MsI+yMRQ+hDKXJioaldXgjUkK642M4UwtBV8ob2xJNDd2ZhwLnoQdeXeGADbkpy
+rqXRfboQnoZsG4q5WTP468SQvvG5
+-----END CERTIFICATE-----
+
+)EOF";
+
+const char AWS_CERT_CRT[] PROGMEM = R"EOF(-----BEGIN CERTIFICATE-----
+MIIDWTCCAkGgAwIBAgIUUJE7AZtGxJIvMiLtWhuVAgUHutQwDQYJKoZIhvcNAQEL
+BQAwTTFLMEkGA1UECwxCQW1hem9uIFdlYiBTZXJ2aWNlcyBPPUFtYXpvbi5jb20g
+SW5jLiBMPVNlYXR0bGUgU1Q9V2FzaGluZ3RvbiBDPVVTMB4XDTI2MDUxODE3MzE1
+MVoXDTQ5MTIzMTIzNTk1OVowHjEcMBoGA1UEAwwTQVdTIElvVCBDZXJ0aWZpY2F0
+ZTCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAM/XOuarHyIZ5SueDkWs
+AFPMZYeUCcgYciSevaHzq1LQ0tRVIWoiewEtsAdtdf9WflQGFYlWW8nYJwx9ag2O
+ZJHsz81GwVl/WF4/k1HLq2xtCBX03+x75tbRP/mcBe/a+5ftazAmwMyRK9LDArBP
+M7NJWmVZzNQzj7gTjz2OQV6GfYH0X7mMm6HKbzs8fhuLGE10coAsL4hJdG7PJYBv
+oQ35JtbBffTp8ICvAqWQq1pjEa7WURzGM+SK8foxepI6Ot/MD/2VkXhzpMc/Jme1
+3pKTq6A1YLh5oK2/LpA3n1AosYKMhVbwLj85awz1oQy4gEDEhsTdWfXV93TP/RsT
+bV0CAwEAAaNgMF4wHwYDVR0jBBgwFoAU+0lrzhYv0fPZCEPX1uSbgb9n6K4wHQYD
+VR0OBBYEFE64/7zV2b0rj1QFPKRRS6uoQ5GVMAwGA1UdEwEB/wQCMAAwDgYDVR0P
+AQH/BAQDAgeAMA0GCSqGSIb3DQEBCwUAA4IBAQBUnZk8NjJ9dyHNadJALeNuKABF
+TlHqcBNg5rmodCt3J7syg55qUdUAqjAwOTF1/2MH3c3oCEpztK59YIUFtVfBb9EX
+ckIucTzXC5kM9xQpi3aU2Q5lAGq2LDOdMaCTRaAmNDS4W+PXq+vX35bKz2Hfk7UN
++XUXXOz67Fe4CxgJDF0Tht5nKxOUX4uF9Zz5i2CNkCGb1qLDrxODE0BgjQvq2oMd
+8n4jk5Ufi/r2ibrz9Wms0b5s+PAGEvJD/cIQgFgCiMjNUa9EDJ/hYhbmeyjAF9Ay
+o1sknsMhWSfRXTUHPqj8wMDhKZl8boqTHeXfyQz+QSGmiPri6o1Erhm6Q/LA
+-----END CERTIFICATE-----
+
+)EOF";
+
+const char AWS_CERT_PRIVATE[] PROGMEM = R"EOF(-----BEGIN RSA PRIVATE KEY-----
+MIIEogIBAAKCAQEAz9c65qsfIhnlK54ORawAU8xlh5QJyBhyJJ69ofOrUtDS1FUh
+aiJ7AS2wB211/1Z+VAYViVZbydgnDH1qDY5kkezPzUbBWX9YXj+TUcurbG0IFfTf
+7Hvm1tE/+ZwF79r7l+1rMCbAzJEr0sMCsE8zs0laZVnM1DOPuBOPPY5BXoZ9gfRf
+uYybocpvOzx+G4sYTXRygCwviEl0bs8lgG+hDfkm1sF99OnwgK8CpZCrWmMRrtZR
+HMYz5Irx+jF6kjo638wP/ZWReHOkxz8mZ7XekpOroDVguHmgrb8ukDefUCixgoyF
+VvAuPzlrDPWhDLiAQMSGxN1Z9dX3dM/9GxNtXQIDAQABAoIBAB54Z2I55C6TrU1f
+tqfwN3wRkzD1Oxniu5kyzIpZttxFUSNf964fr/jUQeJU4d+1Rn/7BF1GE97bmZ3z
+JQEnxwa9uRlXLjF4wfPPTkHHojIbKfxOEiYRZB5KPx7RCO3JJOl5HSXKCKn0/n+/
+pz1B30qBjocdSzIw/Pj3pSBZIqxAt4mStyFYaE0iPHjfVeHfg7v6zQNJ/kU17d3X
+wMU62H3kQ9pKrSUgzLM//SZxyHaY6CeWle9ZVdIGEYtcqoju7eKKBO1aRnjPx6Fu
+yLbxLiK0XrmfCs4+wB75LE9I4DSAnnS624jRw0ubLovkwQ8sBnonmSnn7FfjoLVL
+m10OxQECgYEA9z9scvDv1UrJ27H6V61OQeed9hFKAC3dxEt1SF2Iz4IvyltZTMgJ
+xcq7877d56eJqWXfphRMT3ru8yGdW/BNrmMw4RVUPXU6cEhSQrkdrvAetfwdEp7w
+DJ6XUAs8EB8TOiGxajkQs7tZrs+SiHqnNw5OkSTjCQ9oFQbuKKdXJvUCgYEA1zKy
+iY7cCcM3vah9p1uMnxjtev3v/6Cmb+CyXEHtD44BKVz3BXvMS23HIzFUyrj+h5sP
+4u9X3NzSrnK843Bu0YKTvKwqobtvwtn8Leu4PL8qh7TH09IWuyCZm1z7/87MD9r1
+h7pmuQoz39yGxjAX9NYAoqrR3PLLBIJxerIiG8kCgYBg2ADcjK8ENoUWfoH2MbXD
+brualG8N3ulMZ9oKfEiILxAVDO7PelMJnD0+XfaBNEhhh7uwS6cQQrCxnusKBfgH
+ZGbS4w3Z/L7lGA7Qf722terxkUy57HNOHhhai+v8zI81Z9kcKDn4jFu2cyuMNa6l
+i/8OLwqWk+hKxCoo1lL2uQKBgAM3yturuzaaKLc5Ucey4sNuR/7S1UfpSxPZNFGU
+2sqkwPexYDBAzalDFvs7vZzab1PvyakHEzVGSBA7vv9XqxCO906W9Hw+pUkwoUi+
+gZ7G7QfieCp+tcBOmH1uQoZsvThvecRx0R9rO6NZVNqZ1YHfwVqtWz4Gk2qZ2MCQ
+8VmhAoGAH4stgXOTSfThijmqjaC+/CN4d7MLDiF/JNUiVG169FeiMMRCN4SAlKIm
+qm2L/h4GorDWc5SIwoDTL7kYvQPTrS31dspSvqpvSvvMmu47fulmLNc+JiWAnVGl
+hRxOPd/WQMkTUisGhkUBBPFaQWtDUOyzrPJVPdWnhjHTVs22mIY=
+-----END RSA PRIVATE KEY-----
+
+)EOF";
+
+const char *AWS_IOT_ENDPOINT = "adegk6zyjdomw-ats.iot.us-east-1.amazonaws.com";
+
+const int AWS_IOT_PORT = 8883;
+
+//=======================================
+// TOPICOS
+//======================================
+
+const char *TOPICOS_PUBLICAR[] = {
+    "senai/esp32/status",
+    "senai/esp32/log",
+    "senai/esp32/resposta"};
+
+const char *TOPICOS_RECEBER[] = {
+    "senai134/luis/esp32/comando",
+    "senai134/luis/esp32/config",
+    "senai134/luis/esp32/display",
+};
+
+const int TOTAL_TOPICOS_PUBLICAR = sizeof(TOPICOS_PUBLICAR) / sizeof(TOPICOS_PUBLICAR[0]);
+
+const int TOTAL_TOPICOS_RECEBER = sizeof(TOPICOS_RECEBER) / sizeof(TOPICOS_RECEBER[0]);
+;
+
+//=======================================
+// DEBUG
+//=======================================
+
+// 0 = SEM MENSAGENS
+// 1 = APENAS ERROS
+// 2 = TODAS AS MENSAGENS
+const int DEBUG_NIVEL_INICIAL = 2;
+
+// Pino usado para forçar todas as mensagens na ininicalização
+const int PINO_HABILITA_DEBUG_COMPLETO = 4;

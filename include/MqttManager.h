@@ -15,7 +15,7 @@ bool mqttestaConectado();
 
 const char* obterTopicoPublicacao(int indiceTopico);
 const char* obterTopicoRecebimento(int indiceTopico);
-int  obterTotalTopicosRecebimentos();
+int  obterTotalTopicosRecebimento();
 
 typedef void (*callbackMensagemMQTT)(const char* topico, const String& mensagem);
 
