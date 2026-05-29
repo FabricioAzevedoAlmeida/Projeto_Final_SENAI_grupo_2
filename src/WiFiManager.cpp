@@ -13,6 +13,7 @@ bool wifiConectado ()
 
 void conectarWiFi()
 {
+  static unsigned long before = 0;
   debugInfo("==========================");
   debugInfo("Iniciando conexão WiFi...");
   debugInfo("==========================");
@@ -30,9 +31,9 @@ void conectarWiFi()
    const int maxTentativasWiFi = 30;
 
     //Aguarda a conexão por ate 30 tentativas 
-   while(WiFi.status() != WL_CONNECTED && tentativasWiFi < maxTentativasWiFi)
+   while(WiFi.status() != WL_CONNECTED && tentativasWiFi < maxTentativasWiFi && millis() - before >= 2000)
    {
-     delay(500);
+     before = millis();
      debugInfoSemLinha(".");
      tentativasWiFi++;
    }

@@ -24,36 +24,39 @@ void setup()
 
 void loop()
 {
-  //Serial.println("EU SOU GAY");
+  // Serial.println("EU SOU GAY");
   SensorUmidadeTemperatura();
 }
 
-
 void SensorUmidadeTemperatura()
 {
-  delay(1000);
-  umidade =  dht.readHumidity();
-  temperatura = dht.readTemperature();
-
-  if(isnan(umidade) || isnan(temperatura))
+  static unsigned int before = 0;
+  if (millis() - before >= 2000)
   {
-    debugErro("Falha ao iniciar o sensor");
-    debugInfo("Verifique a conexão e o pino definido");
+    umidade = dht.readHumidity();
+    temperatura = dht.readTemperature();
+
+    if (isnan(umidade) || isnan(temperatura))
+    {
+      debugErro("Falha ao iniciar o sensor");
+      debugInfo("Verifique a conexão e o pino definido");
+      before = millis();
+      return;
+    }
+
+    debugInfo("Temperatura: " + String(temperatura) + "°C");
+    debugInfo("Umidade: " + String(umidade));
+    debugInfo("Coeficiente barulho: " + String(sensor.getPercentage(20)));
+    debugInfo("------------------------------");
+
+    before = millis();
     return;
   }
-
-   debugInfo("Temperatura: " + String(temperatura) + "°C");
-   debugInfo("Umidade: "+ String(umidade));
-   debugInfo("Coeficiente barulho: " + String(sensor.getPercentage(20)));
-   debugInfo("------------------------------");
-
-   return;
 }
-
 
 void configurarSensor()
 {
- 
+
   debugInfo("==========Sensor DHT22==========");
 
   dht.begin(); // inicializa o sensor DHT22

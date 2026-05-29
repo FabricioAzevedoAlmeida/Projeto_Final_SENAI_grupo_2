@@ -16,9 +16,13 @@ float SENSOR::getPercentage(int SENSE = 20)
     int buffer = 0;
     for (int i = 0; i < SENSE; i++)
     {
-        noise = SENSOR::read();
-        buffer += noise;
-        delay(10);
+        static unsigned long before = 0;
+        if (millis() - before >= 20)
+        {
+            noise = SENSOR::read();
+            buffer += noise;
+            before = millis();
+        }
     }
     return ((float)buffer / (float)SENSE) * 100;
 }
