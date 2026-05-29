@@ -240,7 +240,7 @@ void garantirMQTTConectado()
     }
 }
 
-void loopMQTT()
+void MQTTLoop()
 {
     mqttClient.loop();
 }
