@@ -6,65 +6,77 @@
 #include "secrets.h"
 #include "DebugManager.h"
 
-bool wifiConectado ()
+bool wifiConectado()
 {
-    return WiFi.status() == WL_CONNECTED;
+  return WiFi.status() == WL_CONNECTED;
 }
 
 void conectarWiFi()
 {
-  static unsigned long before = 0;
-  debugInfo("==========================");
-  debugInfo("Iniciando conexão WiFi...");
-  debugInfo("==========================");
+  static unsigned long lastRunOfFunction = 0;
+  static unsigned long beforeReconnectLoop = 0;
+  if (millis() - lastRunOfFunction >= 5000)
+  {
+    if (WiFi.status() == WL_CONNECTED)
+      return;
+    lastRunOfFunction = millis();
 
-  // Configura o ESP32 como station, ou seja
-  //ele vai se conectar a um roteador existente.
-   WiFi.mode(WIFI_STA);
+    debugInfo("==========================");
+    debugInfo("Iniciando conexão WiFi...");
+    debugInfo("==========================");
 
-   //Inicia a conexão com SSID e senha
-   WiFi.begin(WIFI_SSID, WIFI_SENHA);
+    // Configura o ESP32 como station, ou seja
+    // ele vai se conectar a um roteador existente.
+    WiFi.mode(WIFI_STA);
 
-   debugInfo("conectando");
+    // Inicia a conexão com SSID e senha
+    WiFi.begin(WIFI_SSID, WIFI_SENHA);
 
-   int tentativasWiFi = 0;
-   const int maxTentativasWiFi = 30;
+    debugInfo("conectando");
 
-    //Aguarda a conexão por ate 30 tentativas 
-   while(WiFi.status() != WL_CONNECTED && tentativasWiFi < maxTentativasWiFi && millis() - before >= 2000)
-   {
-     before = millis();
-     debugInfoSemLinha(".");
-     tentativasWiFi++;
-   }
+    int tentativasWiFi = 0;
+    const int maxTentativasWiFi = 30;
 
-   debugInfo("");
+    // Aguarda a conexão por ate 30 tentativas
+    while (WiFi.status() != WL_CONNECTED && tentativasWiFi < maxTentativasWiFi && millis() - beforeReconnectLoop >= 2000)
+    {
+      beforeReconnectLoop = millis();
+      debugInfoSemLinha(".");
+      tentativasWiFi++;
+    }
 
-   if (WiFi.status() == WL_CONNECTED)
-   {
-    debugInfo("WiFi conectado com sucesso!");
-    debugInfo("Endereço IP: ");
-    debugInfo(String(WiFi.localIP().toString()));
-   }
-   
-   else
-   {
-    debugErro("Falha ao conectar no WiFi.");
-    debugErro("Verifique SSID, senha e sinal de rede.");
-   }
+    debugInfo("");
+
+    if (WiFi.status() == WL_CONNECTED)
+    {
+      debugInfo("WiFi conectado com sucesso!");
+      debugInfo("Endereço IP: ");
+      debugInfo(String(WiFi.localIP().toString()));
+    }
+
+    else
+    {
+      debugErro("Falha ao conectar no WiFi.");
+      debugErro("Verifique SSID, senha e sinal de rede.");
+    }
+  }
 }
 
 void garantirWiFiConectado()
 {
-  if(WiFi.status() !=WL_CONNECTED)
+  static unsigned long lastRunOfFunction = 0;
+  if (millis() - lastRunOfFunction >= 2000)
   {
-    debugErro("WiFi desconectado. tentando reconectar...");
-    conectarWiFi();
-  }
+    if (WiFi.status() != WL_CONNECTED)
+    {
+      debugErro("WiFi desconectado. tentando reconectar...");
+      conectarWiFi();
+    }
 
-  if (WiFi.status() !=  WL_CONNECTED)
-  {
-    debugErro("Não foi possivel reconectar ao WiFi");
+    if (WiFi.status() != WL_CONNECTED)
+    {
+      debugErro("Não foi possivel reconectar ao WiFi");
+    }
   }
-  
+  lastRunOfFunction = millis();
 }
