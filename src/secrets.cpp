@@ -115,15 +115,10 @@ const int AWS_IOT_PORT = 8883;
 //======================================
 
 const char *TOPICOS_PUBLICAR[] = {
-    "senai/esp32/status",
-    "senai/esp32/log",
-    "senai/esp32/resposta"};
+    "sala09/analise/lado_A"};
 
 const char *TOPICOS_RECEBER[] = {
-    "senai134/luis/esp32/comando",
-    "senai134/luis/esp32/config",
-    "senai134/luis/esp32/display",
-};
+    "sala09/analise/lado_B"};
 
 const int TOTAL_TOPICOS_PUBLICAR = sizeof(TOPICOS_PUBLICAR) / sizeof(TOPICOS_PUBLICAR[0]);
 
