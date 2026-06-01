@@ -40,7 +40,7 @@ unsigned long inicioRuidoA = 0;
 unsigned long inicioRuidoB = 0;
 bool ativoA = false;
 bool ativoB = false;
-const unsigned long duracaoRuido = 3000;
+const unsigned long duracaoRuido = 1000;
 
 unsigned long inicioSilencioA = 0;
 unsigned long inicioSilencioB = 0;
@@ -173,6 +173,9 @@ void tratarMensagemRecebida(const char* topico, const String & mensagem)
   temperaturaOposto = doc["analise"]["temperatura"].as<float>();
   umidadeOposto = doc["analise"]["umidade"].as<float>();
   ruidoOposto = doc["analise"]["ruido"].as<float>();
+
+  diferencaTemp();
+  alertaSomEco();
 }
 
 void diferencaTemp()
@@ -199,7 +202,7 @@ void diferencaTemp()
 void alertaSomEco()
 {
   unsigned long agora = millis();
-  int limitesSom = 70;
+  int limitesSom = 50 ;
  
   if (ruido >= limitesSom)
   {
