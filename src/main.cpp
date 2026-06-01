@@ -23,8 +23,6 @@ const unsigned long intervalo = 10000;
 bool SensorUmidadeTemperatura();
 void configurarSensor();
 
-const char TOPICO_COMANDO[] = "sala09/analise/lado_A";
-
 void publicarDadosAnalise();
 
 DHT dht(PIN_DHT, TIPO_DHT);
@@ -109,5 +107,5 @@ void publicarDadosAnalise()
   char buffer[256];
 
   serializeJson(doc, buffer, sizeof(buffer)); // (JSON, onde vai ser escrito, tamanho maximo)
-  publicarMensagem(TOPICO_COMANDO, buffer);
+  publicarMensagem(obterTopicoPublicacao(0), buffer);
 }
