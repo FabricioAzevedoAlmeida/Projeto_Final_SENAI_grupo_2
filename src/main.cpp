@@ -48,18 +48,17 @@ void loop()
 
     if (millis() - ultimaPublicacao >= intervalo)
     {
-        ruido = sensor.getPercentage(50);
-        ultimaPublicacao = millis();
+        ruido = sensor.getPercentage(20);
         if (SensorUmidadeTemperatura())
             publicarDadosAnalise();
         else
             debugErro("Erro ao ler sensores, publicacão nao acontecerá");
+        ultimaPublicacao = millis();
     }
 }
 
 bool SensorUmidadeTemperatura()
 {
-
     if (isnan(umidade) || isnan(temperatura))
     {
         debugErro("Falha ao iniciar o sensor");
@@ -77,7 +76,7 @@ void configurarSensor()
 
     debugInfo("==========Sensor DHT22==========");
 
-    dht.begin(); // inicializa o sensor DHT22
+    dht.begin();
     debugInfo("Sensor inicializado");
     return;
 }
