@@ -6,9 +6,22 @@
 #include "WiFiManager.h"
 #include "MqttManager.h"
 
+//==========================================
+//
+//      Declaração de constantes globais
+//
+//==========================================
+
 #define PIN_DHT 8
 #define TIPO_DHT DHT22
 #define PIN_MIC 9
+#define intervalo 10000
+
+//==========================================
+//
+//      Declaração de variaveis globais
+//
+//==========================================
 
 float temperatura;
 float umidade;
@@ -16,16 +29,23 @@ float ruido;
 int comandoAr;
 int alertaSom;
 bool eco;
-
 unsigned long ultimaPublicacao = 0;
-const unsigned long intervalo = 10000;
+
+//==========================================
+//
+//     Prototipação de funções
+//
+//==========================================
 
 bool SensorUmidadeTemperatura();
 void configurarSensor();
-
-const char TOPICO_COMANDO[] = "sala09/analise/lado_A";
-
 void publicarDadosAnalise();
+
+//==========================================
+//
+//    Inicialização dos objetos da classe
+//
+//==========================================
 
 DHT dht(PIN_DHT, TIPO_DHT);
 SENSOR sensor(PIN_MIC);
@@ -109,5 +129,5 @@ void publicarDadosAnalise()
     char buffer[256];
 
     serializeJson(doc, buffer, sizeof(buffer)); // (JSON, onde vai ser escrito, tamanho maximo)
-    publicarMensagem(TOPICO_COMANDO, buffer);
+    publicarMensagem(obterTopicoPublicacao(0), buffer);
 }
