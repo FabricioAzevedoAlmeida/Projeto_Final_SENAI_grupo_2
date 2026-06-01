@@ -26,6 +26,11 @@
 float temperatura;
 float umidade;
 float ruido;
+
+float temperaturaOposto;
+float umidadeOposto;
+float ruidoOposto;
+
 int comandoAr;
 int alertaSom;
 bool eco;
@@ -40,6 +45,8 @@ unsigned long ultimaPublicacao = 0;
 bool SensorUmidadeTemperatura();
 void configurarSensor();
 void publicarDadosAnalise();
+
+void tratarMensagemRecebida(const char* topico, const String & mensagem);
 
 //==========================================
 //
@@ -58,6 +65,7 @@ void setup()
     configTime(10800, 0, "b.ntp.br");
     configurarMQTT();
     conectarMQTT();
+    registrarCallbackMensagem(tratarMensagemRecebida);
 }
 
 void loop()
@@ -77,6 +85,7 @@ void loop()
     }
 }
 
+
 bool SensorUmidadeTemperatura()
 {
     umidade = dht.readHumidity();
@@ -91,6 +100,7 @@ bool SensorUmidadeTemperatura()
     return true;
 }
 
+
 void configurarSensor()
 {
 
@@ -100,6 +110,7 @@ void configurarSensor()
     debugInfo("Sensor inicializado");
     return;
 }
+
 
 void publicarDadosAnalise()
 {
@@ -130,4 +141,21 @@ void publicarDadosAnalise()
 
     serializeJson(doc, buffer, sizeof(buffer)); // (JSON, onde vai ser escrito, tamanho maximo)
     publicarMensagem(obterTopicoPublicacao(0), buffer);
+}
+
+
+void tratarMensagemRecebida(const char* topico, const String & mensagem)
+{
+  JsonDocument doc;
+  DeserializationError erro = deserializeJson(doc, mensagem);
+
+  if(erro)
+  {
+    debugErro("Erro ao interpretar JSON do lado oposto");
+    return;
+  }
+
+  temperaturaOposto = doc["analise"]["temperatura"].as<float>();
+  umidadeOposto = doc["analise"]["umidade"].as<float>();
+  ruidoOposto = doc["analise"]["ruido"].as<float>();
 }
