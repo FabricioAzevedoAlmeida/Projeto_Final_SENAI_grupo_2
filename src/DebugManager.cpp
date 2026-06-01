@@ -30,6 +30,43 @@ void debugInfo(const String &mensagem)
     }
 }
 
+void debugAviso(const String &mensagem)
+{
+    if (nivelDebugAtual >= DEBUG_TUDO)
+    {
+        Serial.print("[AVISO] ");
+        Serial.println(mensagem);
+    }
+}
+
+void debugVerbose(const String &mensagem)
+{
+    if (nivelDebugAtual >= DEBUG_TUDO)
+    {
+        Serial.print("[VERBOSE] ");
+        Serial.println(mensagem);
+    }
+}
+
+void debugNenhum(const String &mensagem)
+{
+    if (nivelDebugAtual >= DEBUG_TUDO)
+    {
+        Serial.print("[NENHUM] ");
+        Serial.println(mensagem);
+    }
+}
+
+void debugTudo(const String &mensagem)
+{
+    if (nivelDebugAtual >= DEBUG_TUDO)
+    {
+        Serial.print("[TUDO] ");
+        Serial.println(mensagem);
+    }
+}
+
+
 void debugInfoSemLinha(const String &mensagem)
 {
     if (nivelDebugAtual >= DEBUG_TUDO)
