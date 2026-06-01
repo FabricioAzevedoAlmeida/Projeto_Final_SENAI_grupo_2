@@ -36,6 +36,19 @@ int alertaSom;
 bool eco;
 unsigned long ultimaPublicacao = 0;
 
+unsigned long inicioRuidoA = 0;
+unsigned long inicioRuidoB = 0;
+bool ativoA = false;
+bool ativoB = false;
+const unsigned long duracaoRuido = 3000;
+
+unsigned long inicioSilencioA = 0;
+unsigned long inicioSilencioB = 0;
+bool silencioA = false;
+bool silencioB = false;
+ 
+const unsigned long duracaoEco = 900000;
+
 //==========================================
 //
 //     Prototipação de funções
@@ -45,6 +58,8 @@ unsigned long ultimaPublicacao = 0;
 bool SensorUmidadeTemperatura();
 void configurarSensor();
 void publicarDadosAnalise();
+void diferencaTemp();
+void alertaSomEco();
 
 void tratarMensagemRecebida(const char* topico, const String & mensagem);
 
@@ -158,4 +173,106 @@ void tratarMensagemRecebida(const char* topico, const String & mensagem)
   temperaturaOposto = doc["analise"]["temperatura"].as<float>();
   umidadeOposto = doc["analise"]["umidade"].as<float>();
   ruidoOposto = doc["analise"]["ruido"].as<float>();
+}
+
+void diferencaTemp()
+{
+  float diferencatemp = abs(temperatura - temperaturaOposto);
+
+  if (diferencatemp < 4)
+  {
+    comandoAr = 0;
+  }
+  else
+  {
+    if (temperatura > temperaturaOposto)
+    {
+      comandoAr = 1;
+    }
+    else
+    {
+      comandoAr = 2;
+    }
+  }
+}
+
+void alertaSomEco()
+{
+  unsigned long agora = millis();
+  int limitesSom = 70;
+ 
+  if (ruido >= limitesSom)
+  {
+     silencioA = false;
+
+    if (!ativoA)
+    {
+      ativoA = true;
+      inicioRuidoA = agora;
+    }
+  }
+  else
+  {
+    ativoA = false;
+
+    if (!silencioA) 
+    {
+     silencioA = true;
+     inicioSilencioA = agora;
+    }
+  }
+  
+  
+    if (ruido >= limitesSom)
+  {
+    silencioB = false;
+
+    if (!ativoB)
+    {
+      ativoB = true;
+      inicioRuidoB = agora;
+    }
+  }
+  else
+  {
+    ativoB = false;
+
+     if (!silencioB) {
+      silencioB = true;
+      inicioSilencioB = agora;
+    }
+  }
+  
+
+  bool alertaA = ativoA && (agora - inicioRuidoA >= duracaoRuido);
+  bool alertaB = ativoB && (agora - inicioRuidoB >= duracaoRuido);
+
+  if      (alertaA && alertaB)
+  { 
+    alertaSom = 3;
+  }
+  else if (alertaA)
+  {
+    alertaSom = 1;
+  }
+  else if (alertaB) 
+  {
+    alertaSom = 2;
+  }
+  else        
+  {
+    alertaSom = 0;
+  }
+ 
+  bool ecoA = silencioA && (agora - inicioSilencioA >= duracaoEco);
+  bool ecoB = silencioB && (agora - inicioSilencioB >= duracaoEco);
+
+  if (ecoA && ecoB)
+  {
+    eco = 1;
+  }
+  else 
+  {
+    eco = 0;
+  }
 }
