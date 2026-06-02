@@ -23,17 +23,18 @@
 //
 //==========================================
 
-float temperatura;
-float umidade;
-float ruido;
+float temperatura = 0.0;
+float umidade = 0.0;
+float ruido = 0.0;
 
-float temperaturaOposto;
-float umidadeOposto;
-float ruidoOposto;
+float temperaturaOposto = 0.0;
+float umidadeOposto = 0.0;
+float ruidoOposto = 0.0;
 
-int comandoAr;
-int alertaSom;
-bool eco;
+int comandoAr = 0;
+int alertaSom = 0;
+bool eco = false;
+
 unsigned long ultimaPublicacao = 0;
 
 unsigned long inicioRuidoA = 0;
