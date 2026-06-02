@@ -94,7 +94,7 @@ void loop()
     garantirWiFiConectado();
     garantirMQTTConectado();
     MQTTLoop();
-    ruido = sensor.getPercentage(5);
+    ruido = sensor.getPercentage(20);
     alertaSomEco();
 
     if (millis() - ultimaPublicacao >= intervalo)
@@ -189,6 +189,7 @@ void tratarMensagemRecebida(const char* topico, const String & mensagem)
   diferencaTemp();
   alertaSomEco();
 
+  debugInfo("=============================================================");
   debugInfo("Dados do ESP32 oposto recebidos, topico: " + String(topico));
   debugInfo("Temperatura lado oposto: " + String(temperaturaOposto) + "°C");
   debugInfo("Umidade lado oposto: " + String(umidadeOposto) + "%");
@@ -196,6 +197,7 @@ void tratarMensagemRecebida(const char* topico, const String & mensagem)
   debugInfo("Aviso para equiparar o ar: " + String(comandoAr));
   debugInfo("Aviso de ruido alto: " + String(alertaSom));
   debugInfo("Aviso para modo economia: " + String(eco));
+  debugInfo("=============================================================");
 }
 
 
@@ -225,6 +227,7 @@ void diferencaTemp()
     }
   }
 
+  debugInfo("=============================================================");
   debugInfo("Temperatura capturada pelo sensor deste lado foi: " + String(temperatura));
   debugInfo("Temperatura captada pelo sensor do lado oposto foi: " + String(temperaturaOposto));
   debugInfo("A diferença é de: " + String(diferencatemp));
@@ -234,6 +237,7 @@ void diferencaTemp()
     debugInfo("comandoAr = 1; Este Lado esta substancialmente mais quente que o Lado Oposto (diferença maior ou igual a 4°C)");
   else
     debugInfo("comandoAr = 2; Lado Oposto esta substancialmente mais quente que o Este Lado (diferença maior ou igual a 4°C)");
+  debugInfo("=============================================================");
 }
 
 
@@ -331,6 +335,7 @@ void alertaSomEco()
   {
     alertaSomAnterior = alertaSom;
 
+    debugInfo("=============================================================");
     debugInfo("Ruido captado pelo sensor Deste Lado foi: " + String(ruido));
     debugInfo("Ruido captado pelo sensor do Lado Oposto foi: " + String(ruidoOposto));
       
@@ -342,15 +347,22 @@ void alertaSomEco()
         debugInfo("alertaSom = 2; Conversa alta persistente detectada no Lado Oposto da sala.");
       else
         debugInfo("alertaSom = 3; Conversa alta persistente detectada em ambos Lados da sala.");
+    debugInfo("=============================================================");
   }
 
   if(eco != ecoAnterior)
   {
       ecoAnterior = eco;
 
-      if(eco == false)
+      if(eco == false){
+        debugInfo("=============================================================");
         debugInfo("Sala não esta vazia.");
+        debugInfo("=============================================================");}
       else
+      {
+        debugInfo("=============================================================");
         debugInfo("Sala está vazia, necessario ativar modo de economia.");
+        debugInfo("=============================================================");
+      }
   }
 }
