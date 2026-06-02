@@ -15,7 +15,7 @@
 #define PIN_DHT 8
 #define TIPO_DHT DHT22
 #define PIN_MIC 9
-#define intervalo 5000
+#define intervalo 3000
 
 //==========================================
 //
@@ -41,7 +41,7 @@ unsigned long inicioRuidoA = 0;
 unsigned long inicioRuidoB = 0;
 bool ativoA = false;
 bool ativoB = false;
-const unsigned long duracaoRuido = 1000;
+const unsigned long duracaoRuido = 300;
 
 unsigned long inicioSilencioA = 0;
 unsigned long inicioSilencioB = 0;
@@ -153,6 +153,7 @@ void publicarDadosAnalise()
     debugInfo("ComandoAr: " + String(comandoAr));
     debugInfo("AlertaSom: " + String(alertaSom));
     debugInfo("Eco: " + String(eco));
+    debugInfo("=============================================================");
 
     analise["timestamp"] = timestamp;
     analise["temperatura"] = temperatura;
@@ -251,7 +252,7 @@ void alertaSomEco()
   }
 
   unsigned long agora = millis();
-  int limitesSom = 50 ;
+  int limitesSom = 50;
  
   if (ruido >= limitesSom)
   {
