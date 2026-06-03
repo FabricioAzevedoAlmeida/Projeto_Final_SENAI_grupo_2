@@ -190,7 +190,7 @@ void tratarMensagemRecebida(const char* topico, const String & mensagem)
   diferencaTemp();
   alertaSomEco();
 
-  debugInfo("=============================================================");
+  debugInfo("===== DADOS RECEBIDOS =====");
   debugInfo("Dados do ESP32 oposto recebidos, topico: " + String(topico));
   debugInfo("Temperatura lado oposto: " + String(temperaturaOposto) + "°C");
   debugInfo("Umidade lado oposto: " + String(umidadeOposto) + "%");
@@ -198,7 +198,7 @@ void tratarMensagemRecebida(const char* topico, const String & mensagem)
   debugInfo("Aviso para equiparar o ar: " + String(comandoAr));
   debugInfo("Aviso de ruido alto: " + String(alertaSom));
   debugInfo("Aviso para modo economia: " + String(eco));
-  debugInfo("=============================================================");
+
 }
 
 
@@ -228,7 +228,7 @@ void diferencaTemp()
     }
   }
 
-  debugInfo("=============================================================");
+  debugInfo("===== ALERTA TEMPERATURA =====");
   debugInfo("Temperatura capturada pelo sensor deste lado foi: " + String(temperatura));
   debugInfo("Temperatura captada pelo sensor do lado oposto foi: " + String(temperaturaOposto));
   debugInfo("A diferença é de: " + String(diferencatemp));
@@ -336,7 +336,7 @@ void alertaSomEco()
   {
     alertaSomAnterior = alertaSom;
 
-    debugInfo("=============================================================");
+    debugInfo("===== ALERTA SOM / ECO =====");
     debugInfo("Ruido captado pelo sensor Deste Lado foi: " + String(ruido));
     debugInfo("Ruido captado pelo sensor do Lado Oposto foi: " + String(ruidoOposto));
       
@@ -348,7 +348,6 @@ void alertaSomEco()
         debugInfo("alertaSom = 2; Conversa alta persistente detectada no Lado Oposto da sala.");
       else
         debugInfo("alertaSom = 3; Conversa alta persistente detectada em ambos Lados da sala.");
-    debugInfo("=============================================================");
   }
 
   if(eco != ecoAnterior)
@@ -356,12 +355,10 @@ void alertaSomEco()
       ecoAnterior = eco;
 
       if(eco == false){
-        debugInfo("=============================================================");
         debugInfo("Sala não esta vazia.");
         debugInfo("=============================================================");}
       else
       {
-        debugInfo("=============================================================");
         debugInfo("Sala está vazia, necessario ativar modo de economia.");
         debugInfo("=============================================================");
       }
