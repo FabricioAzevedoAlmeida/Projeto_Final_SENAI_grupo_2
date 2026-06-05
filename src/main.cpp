@@ -94,7 +94,7 @@ void loop()
     garantirWiFiConectado();
     garantirMQTTConectado();
     MQTTLoop();
-    ruido = sensor.getPercentage(20);
+    ruido = sensor.getPercentage(100);
     alertaSomEco();
 
     if (millis() - ultimaPublicacao >= intervalo)
@@ -252,7 +252,7 @@ void alertaSomEco()
   }
 
   unsigned long agora = millis();
-  int limitesSom = 50;
+  int limitesSom = 70;
  
   if (ruido >= limitesSom)
   {
