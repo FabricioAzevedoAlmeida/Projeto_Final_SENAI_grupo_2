@@ -100,11 +100,11 @@ void setup()
 
 void loop()
 {
-    garantirWiFiConectado();
-    garantirMQTTConectado();
-    MQTTLoop();
-    ruido = sensor.getPercentage(100);
-    alertaSomEco();
+  garantirWiFiConectado();
+  garantirMQTTConectado();
+  MQTTLoop();
+  ruido = sensor.getPercentage(100);
+  alertaSomEco();
 
   if (millis() - ultimaPublicacao >= intervalo)
   {
@@ -153,47 +153,69 @@ void publicarDadosAnalise()
   debugInfo("Publicando dados de analise...");
   debugInfo("==============================");
 
-  analise["timestamp"] = timestamp;
-  debugInfo("Timestamp: " + String(timestamp));
-
+  bool alteracao = false;
   if (abs(temperatura - PastPublishedTemperatura) >= 1)
   {
     analise["temperatura"] = temperatura;
     PastPublishedTemperatura = temperatura;
     debugInfo("Temperatura: " + String(temperatura) + "°C");
+    alteracao = true;
   }
+  else
+    debugInfo("Não foi publicado temperatura pois a variacão foi desconsideravel.");
   if (abs(umidade - PastPublishedUmidade) >= 1)
   {
     analise["umidade"] = umidade;
     PastPublishedUmidade = umidade;
     debugInfo("Umidade: " + String(umidade) + "%");
+    alteracao = true;
   }
+  else
+    debugInfo("Não foi publicado humidade pois a variacão foi desconsideravel.");
   if (abs(ruido - PastPublishedRuido) >= 1)
   {
     analise["ruido"] = ruido;
     PastPublishedRuido = ruido;
     debugInfo("Ruido: " + String(ruido) + "dB");
+    alteracao = true;
   }
+  else
+    debugInfo("Não foi publicado ruido pois a variacão foi desconsideravel.");
   if (comandoAr != PastPublishedComandoAr)
   {
     analise["comandoAr"] = comandoAr;
     PastPublishedComandoAr = comandoAr;
     debugInfo("ComandoAr: " + String(comandoAr));
+    alteracao = true;
   }
+  else
+    debugInfo("Não foi publicado comandoAr pois não houve alteração");
   if (alertaSom != PastPublishedAlertaSom)
   {
     analise["alertaSom"] = alertaSom;
     PastPublishedAlertaSom = alertaSom;
     debugInfo("AlertaSom: " + String(alertaSom));
+    alteracao = true;
   }
+  else
+    debugInfo("Não foi publicado AlertaSom pois não houve alteração");
   if (eco != PastPublishedEco)
   {
     analise["eco"] = eco;
     PastPublishedEco = eco;
-
     debugInfo("Eco: " + String(eco));
+    alteracao = true;
   }
-  
+  else
+    debugInfo("Não foi publicado Eco pois não houve alteração");
+  if (alteracao)
+  {
+    analise["timestamp"] = timestamp;
+    debugInfo("Timestamp: " + String(timestamp));
+  }
+  else
+    debugInfo("Nada foi publicado pois não houve nenhuma alterção");
+
   debugInfo("=============================================================");
   char buffer[256];
 
@@ -229,7 +251,6 @@ void tratarMensagemRecebida(const char *topico, const String &mensagem)
   debugInfo("Aviso para equiparar o ar: " + String(comandoAr));
   debugInfo("Aviso de ruido alto: " + String(alertaSom));
   debugInfo("Aviso para modo economia: " + String(eco));
-
 }
 
 void diferencaTemp()
@@ -282,7 +303,7 @@ void alertaSomEco()
 
   unsigned long agora = millis();
   int limitesSom = 70;
- 
+
   if (ruido >= limitesSom)
   {
     silencioA = false;
@@ -366,28 +387,30 @@ void alertaSomEco()
     debugInfo("===== ALERTA SOM / ECO =====");
     debugInfo("Ruido captado pelo sensor Deste Lado foi: " + String(ruido));
     debugInfo("Ruido captado pelo sensor do Lado Oposto foi: " + String(ruidoOposto));
-      
-      if(alertaSom == 0)
-        debugInfo("alertaSom = 0; Nível de ruído dentro dos limites de tolerância.");
-      else if(alertaSom == 1)
-        debugInfo("alertaSom = 1; Conversa alta persistente detectada Neste Lado da sala.");
-      else if(alertaSom == 2)
-        debugInfo("alertaSom = 2; Conversa alta persistente detectada no Lado Oposto da sala.");
-      else
-        debugInfo("alertaSom = 3; Conversa alta persistente detectada em ambos Lados da sala.");
+
+    if (alertaSom == 0)
+      debugInfo("alertaSom = 0; Nível de ruído dentro dos limites de tolerância.");
+    else if (alertaSom == 1)
+      debugInfo("alertaSom = 1; Conversa alta persistente detectada Neste Lado da sala.");
+    else if (alertaSom == 2)
+      debugInfo("alertaSom = 2; Conversa alta persistente detectada no Lado Oposto da sala.");
+    else
+      debugInfo("alertaSom = 3; Conversa alta persistente detectada em ambos Lados da sala.");
   }
 
   if (eco != ecoAnterior)
   {
     ecoAnterior = eco;
 
-      if(eco == false){
-        debugInfo("Sala não esta vazia.");
-        debugInfo("=============================================================");}
-      else
-      {
-        debugInfo("Sala está vazia, necessario ativar modo de economia.");
-        debugInfo("=============================================================");
-      }
+    if (eco == false)
+    {
+      debugInfo("Sala não esta vazia.");
+      debugInfo("=============================================================");
+    }
+    else
+    {
+      debugInfo("Sala está vazia, necessario ativar modo de economia.");
+      debugInfo("=============================================================");
+    }
   }
 }
