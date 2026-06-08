@@ -100,19 +100,11 @@ void setup()
 
 void loop()
 {
-<<<<<<< HEAD
-  garantirWiFiConectado();
-  garantirMQTTConectado();
-  MQTTLoop();
-  ruido = sensor.getPercentage(20);
-  alertaSomEco();
-=======
     garantirWiFiConectado();
     garantirMQTTConectado();
     MQTTLoop();
     ruido = sensor.getPercentage(100);
     alertaSomEco();
->>>>>>> 7233a5a288f526696375b91bb0a9919d9cba92c5
 
   if (millis() - ultimaPublicacao >= intervalo)
   {
@@ -289,13 +281,8 @@ void alertaSomEco()
   }
 
   unsigned long agora = millis();
-<<<<<<< HEAD
-  int limitesSom = 50;
-
-=======
   int limitesSom = 70;
  
->>>>>>> 7233a5a288f526696375b91bb0a9919d9cba92c5
   if (ruido >= limitesSom)
   {
     silencioA = false;
@@ -379,18 +366,6 @@ void alertaSomEco()
     debugInfo("===== ALERTA SOM / ECO =====");
     debugInfo("Ruido captado pelo sensor Deste Lado foi: " + String(ruido));
     debugInfo("Ruido captado pelo sensor do Lado Oposto foi: " + String(ruidoOposto));
-<<<<<<< HEAD
-
-    if (alertaSom == 0)
-      debugInfo("alertaSom = 0; Nível de ruído dentro dos limites de tolerância.");
-    else if (alertaSom == 1)
-      debugInfo("alertaSom = 1; Conversa alta persistente detectada Neste Lado da sala.");
-    else if (alertaSom == 2)
-      debugInfo("alertaSom = 2; Conversa alta persistente detectada no Lado Oposto da sala.");
-    else
-      debugInfo("alertaSom = 3; Conversa alta persistente detectada em ambos Lados da sala.");
-    debugInfo("=============================================================");
-=======
       
       if(alertaSom == 0)
         debugInfo("alertaSom = 0; Nível de ruído dentro dos limites de tolerância.");
@@ -400,27 +375,12 @@ void alertaSomEco()
         debugInfo("alertaSom = 2; Conversa alta persistente detectada no Lado Oposto da sala.");
       else
         debugInfo("alertaSom = 3; Conversa alta persistente detectada em ambos Lados da sala.");
->>>>>>> 7233a5a288f526696375b91bb0a9919d9cba92c5
   }
 
   if (eco != ecoAnterior)
   {
     ecoAnterior = eco;
 
-<<<<<<< HEAD
-    if (eco == false)
-    {
-      debugInfo("=============================================================");
-      debugInfo("Sala não esta vazia.");
-      debugInfo("=============================================================");
-    }
-    else
-    {
-      debugInfo("=============================================================");
-      debugInfo("Sala está vazia, necessario ativar modo de economia.");
-      debugInfo("=============================================================");
-    }
-=======
       if(eco == false){
         debugInfo("Sala não esta vazia.");
         debugInfo("=============================================================");}
@@ -429,6 +389,5 @@ void alertaSomEco()
         debugInfo("Sala está vazia, necessario ativar modo de economia.");
         debugInfo("=============================================================");
       }
->>>>>>> 7233a5a288f526696375b91bb0a9919d9cba92c5
   }
 }
