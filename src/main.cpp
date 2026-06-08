@@ -236,9 +236,13 @@ void tratarMensagemRecebida(const char *topico, const String &mensagem)
 
   mensagemRecebidaOposto = true;
 
-  temperaturaOposto = doc["analise"]["temperatura"].as<float>();
-  umidadeOposto = doc["analise"]["umidade"].as<float>();
-  ruidoOposto = doc["analise"]["ruido"].as<float>();
+
+  if (doc["analise"].containsKey("temperatura"))
+    temperaturaOposto = doc["analise"]["temperatura"].as<float>();
+  if (doc["analise"].containsKey("umidade"))
+    umidadeOposto = doc["analise"]["umidade"].as<float>();
+  if (doc["analise"].containsKey("ruido"))
+    ruidoOposto = doc["analise"]["ruido"].as<float>();
 
   diferencaTemp();
   alertaSomEco();
