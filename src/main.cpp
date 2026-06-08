@@ -75,6 +75,7 @@ void configurarSensor();
 void publicarDadosAnalise();
 void diferencaTemp();
 void alertaSomEco();
+void espsync();
 
 void tratarMensagemRecebida(const char *topico, const String &mensagem);
 
