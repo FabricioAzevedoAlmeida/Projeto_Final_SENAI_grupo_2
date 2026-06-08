@@ -35,6 +35,15 @@ int comandoAr = 0;
 int alertaSom = 0;
 bool eco = false;
 
+//
+static float PastPublishedTemperatura = 0.0;
+static float PastPublishedUmidade = 0.0;
+static float PastPublishedRuido = 0.0;
+
+static int PastPublishedComandoAr = 0;
+static int PastPublishedAlertaSom = 0;
+static bool PastPublishedEco = false;
+
 unsigned long ultimaPublicacao = 0;
 
 unsigned long inicioRuidoA = 0;
@@ -50,7 +59,7 @@ bool silencioB = false;
 
 int alertaSomAnterior = -1;
 bool ecoAnterior = false;
- 
+
 const unsigned long duracaoEco = 900000;
 
 bool mensagemRecebidaOposto = false;
@@ -67,7 +76,7 @@ void publicarDadosAnalise();
 void diferencaTemp();
 void alertaSomEco();
 
-void tratarMensagemRecebida(const char* topico, const String & mensagem);
+void tratarMensagemRecebida(const char *topico, const String &mensagem);
 
 //==========================================
 //
@@ -80,102 +89,124 @@ SENSOR sensor(PIN_MIC);
 
 void setup()
 {
-    configurarDebug();
-    configurarSensor();
-    conectarWiFi();
-    configTime(10800, 0, "b.ntp.br");
-    configurarMQTT();
-    conectarMQTT();
-    registrarCallbackMensagem(tratarMensagemRecebida);
+  configurarDebug();
+  configurarSensor();
+  conectarWiFi();
+  configTime(10800, 0, "b.ntp.br");
+  configurarMQTT();
+  conectarMQTT();
+  registrarCallbackMensagem(tratarMensagemRecebida);
 }
 
 void loop()
 {
-    garantirWiFiConectado();
-    garantirMQTTConectado();
-    MQTTLoop();
-    ruido = sensor.getPercentage(20);
-    alertaSomEco();
+  garantirWiFiConectado();
+  garantirMQTTConectado();
+  MQTTLoop();
+  ruido = sensor.getPercentage(20);
+  alertaSomEco();
 
-    if (millis() - ultimaPublicacao >= intervalo)
+  if (millis() - ultimaPublicacao >= intervalo)
+  {
+    if (SensorUmidadeTemperatura())
     {
-        if (SensorUmidadeTemperatura())
-        {
-          diferencaTemp();
-          publicarDadosAnalise();
-        }
-        else
-            debugErro("Erro ao ler sensores, publicacão nao acontecerá");
-        ultimaPublicacao = millis();
+      diferencaTemp();
+      publicarDadosAnalise();
     }
+    else
+      debugErro("Erro ao ler sensores, publicacão nao acontecerá");
+    ultimaPublicacao = millis();
+  }
 }
-
 
 bool SensorUmidadeTemperatura()
 {
-    umidade = dht.readHumidity();
-    temperatura = dht.readTemperature();
+  umidade = dht.readHumidity();
+  temperatura = dht.readTemperature();
 
-    if (isnan(umidade) || isnan(temperatura))
-    {
-        debugErro("Falha ao iniciar o sensor");
-        debugInfo("Verifique a conexão e o pino definido");
-        return false;
-    }
-    return true;
+  if (isnan(umidade) || isnan(temperatura))
+  {
+    debugErro("Falha ao iniciar o sensor");
+    debugInfo("Verifique a conexão e o pino definido");
+    return false;
+  }
+  return true;
 }
-
 
 void configurarSensor()
 {
 
-    debugInfo("==========Sensor DHT22==========");
+  debugInfo("==========Sensor DHT22==========");
 
-    dht.begin();
-    debugInfo("Sensor inicializado");
-    return;
+  dht.begin();
+  debugInfo("Sensor inicializado");
+  return;
 }
-
 
 void publicarDadosAnalise()
 {
-    unsigned long timestamp = time(nullptr);
-    JsonDocument doc;
-    JsonObject analise = doc["analise"].to<JsonObject>();
+  unsigned long timestamp = time(nullptr);
+  JsonDocument doc;
+  JsonObject analise = doc["analise"].to<JsonObject>();
 
-    debugInfo("==============================");
-    debugInfo("Publicando dados de analise...");
-    debugInfo("==============================");
-    debugInfo("Timestamp: " + String(timestamp));
-    debugInfo("Temperatura: " + String(temperatura) + "°C");
-    debugInfo("Umidade: " + String(umidade) + "%");
-    debugInfo("Ruido: " + String(ruido) + "dB");
-    debugInfo("ComandoAr: " + String(comandoAr));
-    debugInfo("AlertaSom: " + String(alertaSom));
-    debugInfo("Eco: " + String(eco));
-    debugInfo("=============================================================");
+  debugInfo("==============================");
+  debugInfo("Publicando dados de analise...");
+  debugInfo("==============================");
 
-    analise["timestamp"] = timestamp;
+  analise["timestamp"] = timestamp;
+  debugInfo("Timestamp: " + String(timestamp));
+
+  if (abs(temperatura - PastPublishedTemperatura) >= 1)
+  {
     analise["temperatura"] = temperatura;
+    PastPublishedTemperatura = temperatura;
+    debugInfo("Temperatura: " + String(temperatura) + "°C");
+  }
+  if (abs(umidade - PastPublishedUmidade) >= 1)
+  {
     analise["umidade"] = umidade;
+    PastPublishedUmidade = umidade;
+    debugInfo("Umidade: " + String(umidade) + "%");
+  }
+  if (abs(ruido - PastPublishedRuido) >= 1)
+  {
     analise["ruido"] = ruido;
+    PastPublishedRuido = ruido;
+    debugInfo("Ruido: " + String(ruido) + "dB");
+  }
+  if (comandoAr != PastPublishedComandoAr)
+  {
     analise["comandoAr"] = comandoAr;
+    PastPublishedComandoAr = comandoAr;
+    debugInfo("ComandoAr: " + String(comandoAr));
+  }
+  if (alertaSom != PastPublishedAlertaSom)
+  {
     analise["alertaSom"] = alertaSom;
+    PastPublishedAlertaSom = alertaSom;
+    debugInfo("AlertaSom: " + String(alertaSom));
+  }
+  if (eco != PastPublishedEco)
+  {
     analise["eco"] = eco;
+    PastPublishedEco = eco;
 
-    char buffer[256];
+    debugInfo("Eco: " + String(eco));
+  }
+  
+  debugInfo("=============================================================");
+  char buffer[256];
 
-    serializeJson(doc, buffer, sizeof(buffer)); // (JSON, onde vai ser escrito, tamanho maximo)
-    publicarMensagem(obterTopicoPublicacao(0), buffer);
+  serializeJson(doc, buffer, sizeof(buffer)); // (JSON, onde vai ser escrito, tamanho maximo)
+  publicarMensagem(obterTopicoPublicacao(0), buffer);
 }
 
-
-void tratarMensagemRecebida(const char* topico, const String & mensagem)
+void tratarMensagemRecebida(const char *topico, const String &mensagem)
 {
   JsonDocument doc;
   DeserializationError erro = deserializeJson(doc, mensagem);
 
-  if(erro)
+  if (erro)
   {
     debugErro("Erro ao interpretar JSON do lado oposto");
     return;
@@ -186,7 +217,7 @@ void tratarMensagemRecebida(const char* topico, const String & mensagem)
   temperaturaOposto = doc["analise"]["temperatura"].as<float>();
   umidadeOposto = doc["analise"]["umidade"].as<float>();
   ruidoOposto = doc["analise"]["ruido"].as<float>();
-  
+
   diferencaTemp();
   alertaSomEco();
 
@@ -201,17 +232,16 @@ void tratarMensagemRecebida(const char* topico, const String & mensagem)
   debugInfo("=============================================================");
 }
 
-
 void diferencaTemp()
 {
-  if(!mensagemRecebidaOposto)
+  if (!mensagemRecebidaOposto)
   {
     comandoAr = 0;
     return;
   }
 
   float diferencatemp = abs(temperatura - temperaturaOposto);
-  
+
   if (diferencatemp < 4)
   {
     comandoAr = 0;
@@ -232,19 +262,18 @@ void diferencaTemp()
   debugInfo("Temperatura capturada pelo sensor deste lado foi: " + String(temperatura));
   debugInfo("Temperatura captada pelo sensor do lado oposto foi: " + String(temperaturaOposto));
   debugInfo("A diferença é de: " + String(diferencatemp));
-  if(comandoAr == 0)
+  if (comandoAr == 0)
     debugInfo("comandoAr = 0; Sala termicamente equilibrada (diferença de até 3.9°C).");
-  else if(comandoAr == 1)
+  else if (comandoAr == 1)
     debugInfo("comandoAr = 1; Este Lado esta substancialmente mais quente que o Lado Oposto (diferença maior ou igual a 4°C)");
   else
     debugInfo("comandoAr = 2; Lado Oposto esta substancialmente mais quente que o Este Lado (diferença maior ou igual a 4°C)");
   debugInfo("=============================================================");
 }
 
-
 void alertaSomEco()
 {
-  if(!mensagemRecebidaOposto)
+  if (!mensagemRecebidaOposto)
   {
     alertaSom = 0;
     eco = false;
@@ -253,10 +282,10 @@ void alertaSomEco()
 
   unsigned long agora = millis();
   int limitesSom = 50;
- 
+
   if (ruido >= limitesSom)
   {
-     silencioA = false;
+    silencioA = false;
 
     if (!ativoA)
     {
@@ -269,15 +298,14 @@ void alertaSomEco()
     ativoA = false;
     inicioRuidoA = 0;
 
-    if (!silencioA) 
+    if (!silencioA)
     {
-     silencioA = true;
-     inicioSilencioA = agora;
+      silencioA = true;
+      inicioSilencioA = agora;
     }
   }
-  
-  
-    if (ruidoOposto >= limitesSom)
+
+  if (ruidoOposto >= limitesSom)
   {
     silencioB = false;
 
@@ -292,33 +320,33 @@ void alertaSomEco()
     ativoB = false;
     inicioRuidoB = 0;
 
-     if (!silencioB) {
+    if (!silencioB)
+    {
       silencioB = true;
       inicioSilencioB = agora;
     }
   }
-  
 
   bool alertaA = ativoA && (agora - inicioRuidoA >= duracaoRuido);
   bool alertaB = ativoB && (agora - inicioRuidoB >= duracaoRuido);
 
-  if(alertaA && alertaB)
-  { 
+  if (alertaA && alertaB)
+  {
     alertaSom = 3;
   }
   else if (alertaA)
   {
     alertaSom = 1;
   }
-  else if (alertaB) 
+  else if (alertaB)
   {
     alertaSom = 2;
   }
-  else        
+  else
   {
     alertaSom = 0;
   }
- 
+
   bool ecoA = silencioA && (agora - inicioSilencioA >= duracaoEco);
   bool ecoB = silencioB && (agora - inicioSilencioB >= duracaoEco);
 
@@ -326,44 +354,45 @@ void alertaSomEco()
   {
     eco = true;
   }
-  else 
+  else
   {
     eco = false;
   }
 
-  
-  if(alertaSom != alertaSomAnterior)
+  if (alertaSom != alertaSomAnterior)
   {
     alertaSomAnterior = alertaSom;
 
     debugInfo("=============================================================");
     debugInfo("Ruido captado pelo sensor Deste Lado foi: " + String(ruido));
     debugInfo("Ruido captado pelo sensor do Lado Oposto foi: " + String(ruidoOposto));
-      
-      if(alertaSom == 0)
-        debugInfo("alertaSom = 0; Nível de ruído dentro dos limites de tolerância.");
-      else if(alertaSom == 1)
-        debugInfo("alertaSom = 1; Conversa alta persistente detectada Neste Lado da sala.");
-      else if(alertaSom == 2)
-        debugInfo("alertaSom = 2; Conversa alta persistente detectada no Lado Oposto da sala.");
-      else
-        debugInfo("alertaSom = 3; Conversa alta persistente detectada em ambos Lados da sala.");
+
+    if (alertaSom == 0)
+      debugInfo("alertaSom = 0; Nível de ruído dentro dos limites de tolerância.");
+    else if (alertaSom == 1)
+      debugInfo("alertaSom = 1; Conversa alta persistente detectada Neste Lado da sala.");
+    else if (alertaSom == 2)
+      debugInfo("alertaSom = 2; Conversa alta persistente detectada no Lado Oposto da sala.");
+    else
+      debugInfo("alertaSom = 3; Conversa alta persistente detectada em ambos Lados da sala.");
     debugInfo("=============================================================");
   }
 
-  if(eco != ecoAnterior)
+  if (eco != ecoAnterior)
   {
-      ecoAnterior = eco;
+    ecoAnterior = eco;
 
-      if(eco == false){
-        debugInfo("=============================================================");
-        debugInfo("Sala não esta vazia.");
-        debugInfo("=============================================================");}
-      else
-      {
-        debugInfo("=============================================================");
-        debugInfo("Sala está vazia, necessario ativar modo de economia.");
-        debugInfo("=============================================================");
-      }
+    if (eco == false)
+    {
+      debugInfo("=============================================================");
+      debugInfo("Sala não esta vazia.");
+      debugInfo("=============================================================");
+    }
+    else
+    {
+      debugInfo("=============================================================");
+      debugInfo("Sala está vazia, necessario ativar modo de economia.");
+      debugInfo("=============================================================");
+    }
   }
 }
