@@ -212,15 +212,15 @@ void publicarDadosAnalise()
   {
     analise["timestamp"] = timestamp;
     debugInfo("Timestamp: " + String(timestamp));
+    debugInfo("=============================================================");
+    char buffer[256];
+
+    serializeJson(doc, buffer, sizeof(buffer)); // (JSON, onde vai ser escrito, tamanho maximo)
+    publicarMensagem(obterTopicoPublicacao(0), buffer);
   }
   else
     debugInfo("Nada foi publicado pois não houve nenhuma alterção");
-
   debugInfo("=============================================================");
-  char buffer[256];
-
-  serializeJson(doc, buffer, sizeof(buffer)); // (JSON, onde vai ser escrito, tamanho maximo)
-  publicarMensagem(obterTopicoPublicacao(0), buffer);
 }
 
 void tratarMensagemRecebida(const char *topico, const String &mensagem)
