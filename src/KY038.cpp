@@ -10,14 +10,14 @@ int SENSOR::read()
     return digitalRead(pin);
 }
 
-float SENSOR::getPercentage(int SENSE = 20)
+float SENSOR::getPercentage(int SENSE = 100)
 {
     int noise = 0;
     int buffer = 0;
     for (int i = 0; i < SENSE;)
     {
         static unsigned long before = 0;
-        if (millis() - before >= 20)
+        if (millis() - before >= 2)
         {
             noise = SENSOR::read();
             buffer += noise;
