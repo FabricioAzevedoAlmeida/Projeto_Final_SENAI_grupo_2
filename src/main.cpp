@@ -162,7 +162,7 @@ void publicarDadosAnalise()
     alteracao = true;
   }
   else
-    debugInfo("Não foi publicado temperatura pois a variacão foi desconsideravel.");
+    debugInfo("Temperatura Não foi publicado pois a variacão foi desconsideravel.");
   if (abs(umidade - PastPublishedUmidade) >= 1)
   {
     analise["umidade"] = umidade;
@@ -171,7 +171,7 @@ void publicarDadosAnalise()
     alteracao = true;
   }
   else
-    debugInfo("Não foi publicado humidade pois a variacão foi desconsideravel.");
+    debugInfo("Humidade não foi publicado pois a variacão foi desconsideravel.");
   if (abs(ruido - PastPublishedRuido) >= 1)
   {
     analise["ruido"] = ruido;
@@ -180,7 +180,7 @@ void publicarDadosAnalise()
     alteracao = true;
   }
   else
-    debugInfo("Não foi publicado ruido pois a variacão foi desconsideravel.");
+    debugInfo("Ruido não foi publicado pois a variacão foi desconsideravel.");
   if (comandoAr != PastPublishedComandoAr)
   {
     analise["comandoAr"] = comandoAr;
@@ -189,7 +189,7 @@ void publicarDadosAnalise()
     alteracao = true;
   }
   else
-    debugInfo("Não foi publicado comandoAr pois não houve alteração");
+    debugInfo("ComandoAr não foi publicado pois não houve alteração");
   if (alertaSom != PastPublishedAlertaSom)
   {
     analise["alertaSom"] = alertaSom;
@@ -198,7 +198,7 @@ void publicarDadosAnalise()
     alteracao = true;
   }
   else
-    debugInfo("Não foi publicado AlertaSom pois não houve alteração");
+    debugInfo("AlertaSom não foi publicado pois não houve alteração");
   if (eco != PastPublishedEco)
   {
     analise["eco"] = eco;
@@ -207,7 +207,7 @@ void publicarDadosAnalise()
     alteracao = true;
   }
   else
-    debugInfo("Não foi publicado Eco pois não houve alteração");
+    debugInfo("Eco não foi publicado pois não houve alteração");
   if (alteracao)
   {
     analise["timestamp"] = timestamp;
@@ -220,6 +220,11 @@ void publicarDadosAnalise()
   }
   else
     debugInfo("Nada foi publicado pois não houve nenhuma alterção");
+  debugInfo("=============================================================");
+
+  debugInfo("A temperatura no lado oposto e: " + String(temperaturaOposto));
+  debugInfo("A Humidade no lado oposto e: " + String(umidadeOposto));
+  debugInfo("A Ruido no lado oposto e: " + String(ruidoOposto));
   debugInfo("=============================================================");
 }
 
@@ -235,7 +240,6 @@ void tratarMensagemRecebida(const char *topico, const String &mensagem)
   }
 
   mensagemRecebidaOposto = true;
-
 
   if (doc["analise"].containsKey("temperatura"))
     temperaturaOposto = doc["analise"]["temperatura"].as<float>();
