@@ -5,6 +5,8 @@
 #include "DebugManager.h"
 #include "WiFiManager.h"
 #include "MqttManager.h"
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
 
 //==========================================
 //
@@ -16,6 +18,7 @@
 #define TIPO_DHT DHT22
 #define PIN_MIC 9
 #define intervalo 3000
+#define SOUND_LIMIT 70
 
 //==========================================
 //
@@ -58,9 +61,6 @@ unsigned long inicioSilencioB = 0;
 bool silencioA = false;
 bool silencioB = false;
 
-int alertaSomAnterior = -1;
-bool ecoAnterior = false;
-
 const unsigned long duracaoEco = 900000;
 
 bool mensagemRecebidaOposto = false;
@@ -95,7 +95,7 @@ void setup()
   conectarWiFi();
   configTime(10800, 0, "b.ntp.br");
 
-  while(time(nullptr) < 100000) 
+  while (time(nullptr) < 100000)
     delay(100);
 
   configurarMQTT();
@@ -111,23 +111,31 @@ void loop()
   garantirWiFiConectado();
   garantirMQTTConectado();
   MQTTLoop();
-  ruido = sensor.getPercentage(100);
-  alertaSomEco();
 
   if (millis() - ultimaPublicacao >= intervalo)
   {
+    ruido = sensor.getPercentage(100);
+    alertaSomEco();
     if (SensorUmidadeTemperatura())
     {
       diferencaTemp();
       publicarDadosAnalise();
+      infoLadoOposto();
     }
     else
       debugErro("Erro ao ler sensores, publicacão nao acontecerá");
     ultimaPublicacao = millis();
   }
 }
+void infoLadoOposto()
+{
 
-
+  debugInfo("=============================================================");
+  debugInfo("A Temperatura no lado oposto é: " + String(temperaturaOposto));
+  debugInfo("A Umidade no lado oposto é: " + String(umidadeOposto));
+  debugInfo("O Ruido no lado oposto é: " + String(ruidoOposto));
+  debugInfo("=============================================================");
+}
 bool SensorUmidadeTemperatura()
 {
   umidade = dht.readHumidity();
@@ -142,7 +150,6 @@ bool SensorUmidadeTemperatura()
   return true;
 }
 
-
 void configurarSensor()
 {
 
@@ -152,7 +159,6 @@ void configurarSensor()
   debugInfo("Sensor inicializado");
   return;
 }
-
 
 void publicarDadosAnalise()
 {
@@ -219,6 +225,7 @@ void publicarDadosAnalise()
   }
   else
     debugInfo("Eco não foi publicado pois não houve alteração");
+
   if (alteracao)
   {
     analise["timestamp"] = timestamp;
@@ -230,15 +237,11 @@ void publicarDadosAnalise()
     publicarMensagem(obterTopicoPublicacao(0), buffer);
   }
   else
+  {
     debugInfo("Nada foi publicado pois não houve nenhuma alterção");
-  debugInfo("=============================================================");
-
-  debugInfo("A Temperatura no lado oposto é: " + String(temperaturaOposto));
-  debugInfo("A Umidade no lado oposto é: " + String(umidadeOposto));
-  debugInfo("O Ruido no lado oposto é: " + String(ruidoOposto));
-  debugInfo("=============================================================");
+    debugInfo("=============================================================");
+  }
 }
-
 
 void tratarMensagemRecebida(const char *topico, const String &mensagem)
 {
@@ -250,25 +253,25 @@ void tratarMensagemRecebida(const char *topico, const String &mensagem)
     debugErro("Erro ao interpretar JSON do lado oposto");
     return;
   }
-  
+
   mensagemRecebidaOposto = true;
   if (doc["analise"].containsKey("temperatura"))
-      temperaturaOposto = doc["analise"]["temperatura"].as<float>();
+    temperaturaOposto = doc["analise"]["temperatura"].as<float>();
   if (doc["analise"].containsKey("umidade"))
-      umidadeOposto = doc["analise"]["umidade"].as<float>();
+    umidadeOposto = doc["analise"]["umidade"].as<float>();
   if (doc["analise"].containsKey("ruido"))
-      ruidoOposto = doc["analise"]["ruido"].as<float>();
-  
+    ruidoOposto = doc["analise"]["ruido"].as<float>();
+
   if (strcmp(topico, obterTopicoRecebimento(1)) == 0)
   {
-      if(!syncRealizado)
-        ESPSync();
-      syncRealizado = true;
-      debugInfo("Sincronização realizada entre os ESPs.");
+    if (!syncRealizado)
+      ESPSync();
+    syncRealizado = true;
+    debugInfo("Sincronização realizada entre os ESPs.");
 
-      diferencaTemp();
-      alertaSomEco();
-      return;
+    diferencaTemp();
+    alertaSomEco();
+    return;
   }
 
   diferencaTemp();
@@ -284,36 +287,34 @@ void tratarMensagemRecebida(const char *topico, const String &mensagem)
   debugInfo("Aviso para modo economia: " + String(eco));
 }
 
-
 void ESPSync()
 {
-    JsonDocument doc;
-    JsonObject analise = doc["analise"].to<JsonObject>();
+  JsonDocument doc;
+  JsonObject analise = doc["analise"].to<JsonObject>();
 
-    debugInfo("=================================================");
-    debugInfo("Publicando dados de analise para sincronização...");
-    debugInfo("=================================================");
-    debugInfo("Temperatura: " + String(temperatura) + "°C");
-    debugInfo("Umidade: " + String(umidade) + "%");
-    debugInfo("Ruido: " + String(ruido) + "dB");
-    debugInfo("ComandoAr: " + String(comandoAr));
-    debugInfo("AlertaSom: " + String(alertaSom));
-    debugInfo("Eco: " + String(eco));
-    debugInfo("=============================================================");
+  debugInfo("=================================================");
+  debugInfo("Publicando dados de analise para sincronização...");
+  debugInfo("=================================================");
+  debugInfo("Temperatura: " + String(temperatura) + "°C");
+  debugInfo("Umidade: " + String(umidade) + "%");
+  debugInfo("Ruido: " + String(ruido) + "dB");
+  debugInfo("ComandoAr: " + String(comandoAr));
+  debugInfo("AlertaSom: " + String(alertaSom));
+  debugInfo("Eco: " + String(eco));
+  debugInfo("=============================================================");
 
-    analise["temperatura"] = temperatura;
-    analise["umidade"] = umidade;
-    analise["ruido"] = ruido;
-    analise["comandoAr"] = comandoAr;
-    analise["alertaSom"] = alertaSom;
-    analise["eco"] = eco;
+  analise["temperatura"] = temperatura;
+  analise["umidade"] = umidade;
+  analise["ruido"] = ruido;
+  analise["comandoAr"] = comandoAr;
+  analise["alertaSom"] = alertaSom;
+  analise["eco"] = eco;
 
-    char buffer[256];
+  char buffer[256];
 
-    serializeJson(doc, buffer, sizeof(buffer)); // (JSON, onde vai ser escrito, tamanho maximo)
-    publicarMensagem(obterTopicoPublicacao(1), buffer);
+  serializeJson(doc, buffer, sizeof(buffer)); // (JSON, onde vai ser escrito, tamanho maximo)
+  publicarMensagem(obterTopicoPublicacao(1), buffer);
 }
-
 
 void diferencaTemp()
 {
@@ -326,122 +327,122 @@ void diferencaTemp()
   float diferencatemp = abs(temperatura - temperaturaOposto);
 
   if (diferencatemp < 4)
-  {
     comandoAr = 0;
-  }
   else
   {
     if (temperatura > temperaturaOposto)
-    {
       comandoAr = 1;
-    }
     else
-    {
       comandoAr = 2;
-    }
   }
 
   debugInfo("===== ALERTA TEMPERATURA =====");
   debugInfo("Temperatura capturada pelo sensor deste lado foi: " + String(temperatura));
   debugInfo("Temperatura captada pelo sensor do lado oposto foi: " + String(temperaturaOposto));
   debugInfo("A diferença é de: " + String(diferencatemp));
-  if (comandoAr == 0)
+
+  switch (comandoAr)
+  {
+  case 0:
     debugInfo("comandoAr = 0; Sala termicamente equilibrada (diferença de até 3.9°C).");
-  else if (comandoAr == 1)
+    break;
+  case 1:
     debugInfo("comandoAr = 1; Este Lado esta substancialmente mais quente que o Lado Oposto (diferença maior ou igual a 4°C)");
-  else
+    break;
+  case 2:
     debugInfo("comandoAr = 2; Lado Oposto esta substancialmente mais quente que o Este Lado (diferença maior ou igual a 4°C)");
+    break;
+  default:
+    debugErro("Valor da variável 'comandoAr' é indefinida")
+  }
+
   debugInfo("=============================================================");
+  mensagemRecebidaOposto = false;
 }
 
+int compaAlertaSom()
+{
+  if (alertaA && alertaB)
+  {
+    return 3;
+  }
+  if (alertaB)
+  {
+    return 2;
+  }
+  if (alertaA)
+  {
+    return 1;
+  }
+  return 0;
+}
+
+void tratarRuido() if (ruido >= SOUND_LIMIT)
+{
+  silencioA = false;
+
+  if (!ativoA)
+  {
+    ativoA = true;
+    inicioRuidoA = millis();
+  }
+}
+else
+{
+  ativoA = false;
+  inicioRuidoA = 0;
+
+  if (!silencioA)
+  {
+    silencioA = true;
+    inicioSilencioA = millis();
+  }
+}
+
+if (ruidoOposto >= limitesSom)
+{
+  silencioB = false;
+
+  if (!ativoB)
+  {
+    ativoB = true;
+    inicioRuidoB = millis();
+  }
+}
+else
+{
+  ativoB = false;
+  inicioRuidoB = 0;
+
+  if (!silencioB)
+  {
+    silencioB = true;
+    inicioSilencioB = millis();
+  }
+}
+}
 
 void alertaSomEco()
 {
+
   if (!mensagemRecebidaOposto)
   {
     alertaSom = 0;
     eco = false;
     return;
   }
+  tratarRuido();
+  alertaSom = compaAlertaSom();
+  bool alertaA = ativoA && (millis() - inicioRuidoA >= duracaoRuido);
+  bool alertaB = ativoB && (millis() - inicioRuidoB >= duracaoRuido);
 
-  unsigned long agora = millis();
-  int limitesSom = 70;
-
-  if (ruido >= limitesSom)
-  {
-    silencioA = false;
-
-    if (!ativoA)
-    {
-      ativoA = true;
-      inicioRuidoA = agora;
-    }
-  }
-  else
-  {
-    ativoA = false;
-    inicioRuidoA = 0;
-
-    if (!silencioA)
-    {
-      silencioA = true;
-      inicioSilencioA = agora;
-    }
-  }
-
-  if (ruidoOposto >= limitesSom)
-  {
-    silencioB = false;
-
-    if (!ativoB)
-    {
-      ativoB = true;
-      inicioRuidoB = agora;
-    }
-  }
-  else
-  {
-    ativoB = false;
-    inicioRuidoB = 0;
-
-    if (!silencioB)
-    {
-      silencioB = true;
-      inicioSilencioB = agora;
-    }
-  }
-
-  bool alertaA = ativoA && (agora - inicioRuidoA >= duracaoRuido);
-  bool alertaB = ativoB && (agora - inicioRuidoB >= duracaoRuido);
-
-  if (alertaA && alertaB)
-  {
-    alertaSom = 3;
-  }
-  else if (alertaA)
-  {
-    alertaSom = 1;
-  }
-  else if (alertaB)
-  {
-    alertaSom = 2;
-  }
-  else
-  {
-    alertaSom = 0;
-  }
-
-  bool ecoA = silencioA && (agora - inicioSilencioA >= duracaoEco);
-  bool ecoB = silencioB && (agora - inicioSilencioB >= duracaoEco);
+  bool ecoA = silencioA && (millis() - inicioSilencioA >= duracaoEco);
+  bool ecoB = silencioB && (millis() - inicioSilencioB >= duracaoEco);
 
   if (ecoA && ecoB)
-  {
     eco = true;
-  }
   else
-  {
     eco = false;
-  }
 
   if (alertaSom != alertaSomAnterior)
   {
@@ -451,29 +452,39 @@ void alertaSomEco()
     debugInfo("Ruido captado pelo sensor Deste Lado foi: " + String(ruido));
     debugInfo("Ruido captado pelo sensor do Lado Oposto foi: " + String(ruidoOposto));
 
-    if (alertaSom == 0)
+    switch (alertaSom)
+    {
+    case 0:
       debugInfo("alertaSom = 0; Nível de ruído dentro dos limites de tolerância.");
-    else if (alertaSom == 1)
+      break;
+    case 1:
       debugInfo("alertaSom = 1; Conversa alta persistente detectada Neste Lado da sala.");
-    else if (alertaSom == 2)
+      break;
+    case 2:
       debugInfo("alertaSom = 2; Conversa alta persistente detectada no Lado Oposto da sala.");
-    else
+      break;
+    case 3:
       debugInfo("alertaSom = 3; Conversa alta persistente detectada em ambos Lados da sala.");
-  }
-
-  if (eco != ecoAnterior)
-  {
-    ecoAnterior = eco;
-
-    if (eco == false)
-    {
-      debugInfo("Sala não esta vazia.");
-      debugInfo("=============================================================");
+      break;
+    default:
+      debugErro("Variavel 'AlertSom' possui valor indefinido");
     }
-    else
+
+    if (eco != ecoAnterior)
     {
+      ecoAnterior = eco;
+
+      if (!eco)
+      {
+        debugInfo("Sala não esta vazia.");
+        debugInfo("=============================================================");
+        return;
+      }
+
       debugInfo("Sala está vazia, necessario ativar modo de economia.");
       debugInfo("=============================================================");
+      return;
     }
+    return;
   }
 }
