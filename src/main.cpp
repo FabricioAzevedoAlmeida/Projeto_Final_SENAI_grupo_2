@@ -14,8 +14,10 @@
 #define PIN_DHT 8
 #define TIPO_DHT DHT22
 #define PIN_MIC 9
-#define intervalo 3000
+#define INTERVALO 3000
 #define SOUND_LIMIT 70
+#define RUIDO_TIME 300
+#define ECO_TIME 900000
 
 //==========================================
 //
@@ -51,30 +53,16 @@ unsigned long inicioRuidoA = 0;
 unsigned long inicioRuidoB = 0;
 bool ativoA = false;
 bool ativoB = false;
-const unsigned long duracaoRuido = 300;
+bool alertaA = false;
+bool alertaB = false;
+bool alertaSomAnterior = false;
+bool ecoAnterior = false;
 
 unsigned long inicioSilencioA = 0;
 unsigned long inicioSilencioB = 0;
 bool silencioA = false;
 bool silencioB = false;
-
-const unsigned long duracaoEco = 900000;
-
 bool mensagemRecebidaOposto = false;
-
-//==========================================
-//
-//     Prototipação de funções
-//
-//==========================================
-
-bool SensorUmidadeTemperatura();
-void configurarSensor();
-void diferencaTemp();
-void alertaSomEco();
-void publicarDadosAnalise();
-void ESPSync();
-void tratarMensagemRecebida(const char *topico, const String &mensagem);
 
 //==========================================
 //
@@ -85,45 +73,7 @@ void tratarMensagemRecebida(const char *topico, const String &mensagem);
 DHT dht(PIN_DHT, TIPO_DHT);
 SENSOR sensor(PIN_MIC);
 
-void setup()
-{
-  configurarDebug();
-  configurarSensor();
-  conectarWiFi();
-  configTime(10800, 0, "b.ntp.br");
 
-  while (time(nullptr) < 100000)
-    delay(100);
-
-  configurarMQTT();
-  conectarMQTT();
-  registrarCallbackMensagem(tratarMensagemRecebida);
-  SensorUmidadeTemperatura();
-  ruido = sensor.getPercentage(100);
-  ESPSync();
-}
-
-void loop()
-{
-  garantirWiFiConectado();
-  garantirMQTTConectado();
-  MQTTLoop();
-
-  if (millis() - ultimaPublicacao >= intervalo)
-  {
-    ruido = sensor.getPercentage(100);
-    alertaSomEco();
-    if (SensorUmidadeTemperatura())
-    {
-      diferencaTemp();
-      publicarDadosAnalise();
-      infoLadoOposto();
-    }
-    else
-      debugErro("Erro ao ler sensores, publicacão nao acontecerá");
-    ultimaPublicacao = millis();
-  }
-}
 void infoLadoOposto()
 {
 
@@ -240,50 +190,6 @@ void publicarDadosAnalise()
   }
 }
 
-void tratarMensagemRecebida(const char *topico, const String &mensagem)
-{
-  JsonDocument doc;
-  DeserializationError erro = deserializeJson(doc, mensagem);
-
-  if (erro)
-  {
-    debugErro("Erro ao interpretar JSON do lado oposto");
-    return;
-  }
-
-  mensagemRecebidaOposto = true;
-  if (doc["analise"].containsKey("temperatura"))
-    temperaturaOposto = doc["analise"]["temperatura"].as<float>();
-  if (doc["analise"].containsKey("umidade"))
-    umidadeOposto = doc["analise"]["umidade"].as<float>();
-  if (doc["analise"].containsKey("ruido"))
-    ruidoOposto = doc["analise"]["ruido"].as<float>();
-
-  if (strcmp(topico, obterTopicoRecebimento(1)) == 0)
-  {
-    if (!syncRealizado)
-      ESPSync();
-    syncRealizado = true;
-    debugInfo("Sincronização realizada entre os ESPs.");
-
-    diferencaTemp();
-    alertaSomEco();
-    return;
-  }
-
-  diferencaTemp();
-  alertaSomEco();
-
-  debugInfo("===== DADOS RECEBIDOS =====");
-  debugInfo("Dados do ESP32 oposto recebidos, topico: " + String(topico));
-  debugInfo("Temperatura lado oposto: " + String(temperaturaOposto) + "°C");
-  debugInfo("Umidade lado oposto: " + String(umidadeOposto) + "%");
-  debugInfo("Ruido lado oposto: " + String(ruidoOposto) + "dB");
-  debugInfo("Aviso para equiparar o ar: " + String(comandoAr));
-  debugInfo("Aviso de ruido alto: " + String(alertaSom));
-  debugInfo("Aviso para modo economia: " + String(eco));
-}
-
 void ESPSync()
 {
   JsonDocument doc;
@@ -350,7 +256,7 @@ void diferencaTemp()
     debugInfo("comandoAr = 2; Lado Oposto esta substancialmente mais quente que o Este Lado (diferença maior ou igual a 4°C)");
     break;
   default:
-    debugErro("Valor da variável 'comandoAr' é indefinida")
+    debugErro("Valor da variável 'comandoAr' é indefinida");
   }
 
   debugInfo("=============================================================");
@@ -374,49 +280,49 @@ int compaAlertaSom()
   return 0;
 }
 
-void tratarRuido() if (ruido >= SOUND_LIMIT)
+void tratarRuido()
 {
-  silencioA = false;
+  if (ruido >= SOUND_LIMIT)
+    silencioA = false;
 
   if (!ativoA)
   {
     ativoA = true;
     inicioRuidoA = millis();
   }
-}
-else
-{
-  ativoA = false;
-  inicioRuidoA = 0;
-
-  if (!silencioA)
+  else
   {
-    silencioA = true;
-    inicioSilencioA = millis();
+    ativoA = false;
+    inicioRuidoA = 0;
+
+    if (!silencioA)
+    {
+      silencioA = true;
+      inicioSilencioA = millis();
+    }
   }
-}
 
-if (ruidoOposto >= limitesSom)
-{
-  silencioB = false;
-
-  if (!ativoB)
+  if (ruidoOposto >= SOUND_LIMIT)
   {
-    ativoB = true;
-    inicioRuidoB = millis();
-  }
-}
-else
-{
-  ativoB = false;
-  inicioRuidoB = 0;
+    silencioB = false;
 
-  if (!silencioB)
-  {
-    silencioB = true;
-    inicioSilencioB = millis();
+    if (!ativoB)
+    {
+      ativoB = true;
+      inicioRuidoB = millis();
+    }
   }
-}
+  else
+  {
+    ativoB = false;
+    inicioRuidoB = 0;
+
+    if (!silencioB)
+    {
+      silencioB = true;
+      inicioSilencioB = millis();
+    }
+  }
 }
 
 void alertaSomEco()
@@ -430,11 +336,11 @@ void alertaSomEco()
   }
   tratarRuido();
   alertaSom = compaAlertaSom();
-  bool alertaA = ativoA && (millis() - inicioRuidoA >= duracaoRuido);
-  bool alertaB = ativoB && (millis() - inicioRuidoB >= duracaoRuido);
+  bool alertaA = ativoA && (millis() - inicioRuidoA >= RUIDO_TIME);
+  bool alertaB = ativoB && (millis() - inicioRuidoB >= RUIDO_TIME);
 
-  bool ecoA = silencioA && (millis() - inicioSilencioA >= duracaoEco);
-  bool ecoB = silencioB && (millis() - inicioSilencioB >= duracaoEco);
+  bool ecoA = silencioA && (millis() - inicioSilencioA >= RUIDO_TIME);
+  bool ecoB = silencioB && (millis() - inicioSilencioB >= RUIDO_TIME);
 
   if (ecoA && ecoB)
     eco = true;
@@ -483,5 +389,90 @@ void alertaSomEco()
       return;
     }
     return;
+  }
+}
+
+void tratarMensagemRecebida(const char *topico, const String &mensagem)
+{
+  JsonDocument doc;
+  DeserializationError erro = deserializeJson(doc, mensagem);
+
+  if (erro)
+  {
+    debugErro("Erro ao interpretar JSON do lado oposto");
+    return;
+  }
+
+  mensagemRecebidaOposto = true;
+  if (doc["analise"].containsKey("temperatura"))
+    temperaturaOposto = doc["analise"]["temperatura"].as<float>();
+  if (doc["analise"].containsKey("umidade"))
+    umidadeOposto = doc["analise"]["umidade"].as<float>();
+  if (doc["analise"].containsKey("ruido"))
+    ruidoOposto = doc["analise"]["ruido"].as<float>();
+
+  if (strcmp(topico, obterTopicoRecebimento(1)) == 0)
+  {
+    if (!syncRealizado)
+      ESPSync();
+    syncRealizado = true;
+    debugInfo("Sincronização realizada entre os ESPs.");
+
+    diferencaTemp();
+    alertaSomEco();
+    return;
+  }
+
+  diferencaTemp();
+  alertaSomEco();
+
+  debugInfo("===== DADOS RECEBIDOS =====");
+  debugInfo("Dados do ESP32 oposto recebidos, topico: " + String(topico));
+  debugInfo("Temperatura lado oposto: " + String(temperaturaOposto) + "°C");
+  debugInfo("Umidade lado oposto: " + String(umidadeOposto) + "%");
+  debugInfo("Ruido lado oposto: " + String(ruidoOposto) + "dB");
+  debugInfo("Aviso para equiparar o ar: " + String(comandoAr));
+  debugInfo("Aviso de ruido alto: " + String(alertaSom));
+  debugInfo("Aviso para modo economia: " + String(eco));
+}
+
+
+void setup()
+{
+  configurarDebug();
+  configurarSensor();
+  conectarWiFi();
+  configTime(10800, 0, "b.ntp.br");
+
+  while (time(nullptr) < 100000)
+    delay(100);
+
+  configurarMQTT();
+  conectarMQTT();
+  registrarCallbackMensagem(tratarMensagemRecebida);
+  SensorUmidadeTemperatura();
+  ruido = sensor.getPercentage(100);
+  ESPSync();
+}
+
+void loop()
+{
+  garantirWiFiConectado();
+  garantirMQTTConectado();
+  MQTTLoop();
+
+  if (millis() - ultimaPublicacao >= INTERVALO)
+  {
+    ruido = sensor.getPercentage(100);
+    alertaSomEco();
+    if (SensorUmidadeTemperatura())
+    {
+      diferencaTemp();
+      publicarDadosAnalise();
+      infoLadoOposto();
+    }
+    else
+      debugErro("Erro ao ler sensores, publicacão nao acontecerá");
+    ultimaPublicacao = millis();
   }
 }
