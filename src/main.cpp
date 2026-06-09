@@ -5,9 +5,6 @@
 #include "DebugManager.h"
 #include "WiFiManager.h"
 #include "MqttManager.h"
-#include <freertos/FreeRTOS.h>
-#include <freertos/task.h>
-
 //==========================================
 //
 //      Declaração de constantes globais
