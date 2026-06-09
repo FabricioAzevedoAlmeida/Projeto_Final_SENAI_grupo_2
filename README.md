@@ -220,9 +220,9 @@ nivelDebugAtual = DEBUG_TUDO;  // ou DEBUG_ERRO
 
 ## 👥Grupo
 
-Alisson Almeida Gomes\n
-Fabricio Azevedo Almeida\n
-Heloísa Tomé de Araujo\n
-Kael Fontes Araujo\n
-Luis Otávio Coelho ferreira\n
-Victor Bueno\n
+ - Alisson Almeida Gomes
+ - Fabricio Azevedo Almeida
+ - Heloísa Tomé de Araujo
+ - Kael Fontes Araujo
+ - Luis Otávio Coelho ferreira
+ - Victor Bueno
