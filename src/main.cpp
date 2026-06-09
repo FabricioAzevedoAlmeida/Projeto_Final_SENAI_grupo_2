@@ -35,7 +35,8 @@ int comandoAr = 0;
 int alertaSom = 0;
 bool eco = false;
 
-//
+bool syncRealizado = false;
+
 static float PastPublishedTemperatura = 0.0;
 static float PastPublishedUmidade = 0.0;
 static float PastPublishedRuido = 0.0;
@@ -72,11 +73,10 @@ bool mensagemRecebidaOposto = false;
 
 bool SensorUmidadeTemperatura();
 void configurarSensor();
-void publicarDadosAnalise();
 void diferencaTemp();
 void alertaSomEco();
-void espsync();
-
+void publicarDadosAnalise();
+void ESPSync();
 void tratarMensagemRecebida(const char *topico, const String &mensagem);
 
 //==========================================
@@ -97,6 +97,9 @@ void setup()
   configurarMQTT();
   conectarMQTT();
   registrarCallbackMensagem(tratarMensagemRecebida);
+  SensorUmidadeTemperatura();
+  ruido = sensor.getPercentage(100);
+  ESPSync();
 }
 
 void loop()
@@ -120,6 +123,7 @@ void loop()
   }
 }
 
+
 bool SensorUmidadeTemperatura()
 {
   umidade = dht.readHumidity();
@@ -134,6 +138,7 @@ bool SensorUmidadeTemperatura()
   return true;
 }
 
+
 void configurarSensor()
 {
 
@@ -143,6 +148,7 @@ void configurarSensor()
   debugInfo("Sensor inicializado");
   return;
 }
+
 
 void publicarDadosAnalise()
 {
@@ -172,7 +178,7 @@ void publicarDadosAnalise()
     alteracao = true;
   }
   else
-    debugInfo("Humidade não foi publicado pois a variacão foi desconsideravel.");
+    debugInfo("Umidade não foi publicado pois a variacão foi desconsideravel.");
   if (abs(ruido - PastPublishedRuido) >= 1)
   {
     analise["ruido"] = ruido;
@@ -223,11 +229,12 @@ void publicarDadosAnalise()
     debugInfo("Nada foi publicado pois não houve nenhuma alterção");
   debugInfo("=============================================================");
 
-  debugInfo("A temperatura no lado oposto e: " + String(temperaturaOposto));
-  debugInfo("A Humidade no lado oposto e: " + String(umidadeOposto));
-  debugInfo("A Ruido no lado oposto e: " + String(ruidoOposto));
+  debugInfo("A Temperatura no lado oposto é: " + String(temperaturaOposto));
+  debugInfo("A Umidade no lado oposto é: " + String(umidadeOposto));
+  debugInfo("O Ruido no lado oposto é: " + String(ruidoOposto));
   debugInfo("=============================================================");
 }
+
 
 void tratarMensagemRecebida(const char *topico, const String &mensagem)
 {
@@ -239,15 +246,26 @@ void tratarMensagemRecebida(const char *topico, const String &mensagem)
     debugErro("Erro ao interpretar JSON do lado oposto");
     return;
   }
-
+  
   mensagemRecebidaOposto = true;
-
   if (doc["analise"].containsKey("temperatura"))
-    temperaturaOposto = doc["analise"]["temperatura"].as<float>();
+      temperaturaOposto = doc["analise"]["temperatura"].as<float>();
   if (doc["analise"].containsKey("umidade"))
-    umidadeOposto = doc["analise"]["umidade"].as<float>();
+      umidadeOposto = doc["analise"]["umidade"].as<float>();
   if (doc["analise"].containsKey("ruido"))
-    ruidoOposto = doc["analise"]["ruido"].as<float>();
+      ruidoOposto = doc["analise"]["ruido"].as<float>();
+  
+  if (strcmp(topico, obterTopicoRecebimento(1)) == 0)
+  {
+      if(!syncRealizado)
+        ESPSync();
+      syncRealizado = true;
+      debugInfo("Sincronização realizada entre os ESPs.");
+
+      diferencaTemp();
+      alertaSomEco();
+      return;
+  }
 
   diferencaTemp();
   alertaSomEco();
@@ -261,6 +279,37 @@ void tratarMensagemRecebida(const char *topico, const String &mensagem)
   debugInfo("Aviso de ruido alto: " + String(alertaSom));
   debugInfo("Aviso para modo economia: " + String(eco));
 }
+
+
+void ESPSync()
+{
+    JsonDocument doc;
+    JsonObject analise = doc["analise"].to<JsonObject>();
+
+    debugInfo("=================================================");
+    debugInfo("Publicando dados de analise para sincronização...");
+    debugInfo("=================================================");
+    debugInfo("Temperatura: " + String(temperatura) + "°C");
+    debugInfo("Umidade: " + String(umidade) + "%");
+    debugInfo("Ruido: " + String(ruido) + "dB");
+    debugInfo("ComandoAr: " + String(comandoAr));
+    debugInfo("AlertaSom: " + String(alertaSom));
+    debugInfo("Eco: " + String(eco));
+    debugInfo("=============================================================");
+
+    analise["temperatura"] = temperatura;
+    analise["umidade"] = umidade;
+    analise["ruido"] = ruido;
+    analise["comandoAr"] = comandoAr;
+    analise["alertaSom"] = alertaSom;
+    analise["eco"] = eco;
+
+    char buffer[256];
+
+    serializeJson(doc, buffer, sizeof(buffer)); // (JSON, onde vai ser escrito, tamanho maximo)
+    publicarMensagem(obterTopicoPublicacao(1), buffer);
+}
+
 
 void diferencaTemp()
 {
@@ -300,6 +349,7 @@ void diferencaTemp()
     debugInfo("comandoAr = 2; Lado Oposto esta substancialmente mais quente que o Este Lado (diferença maior ou igual a 4°C)");
   debugInfo("=============================================================");
 }
+
 
 void alertaSomEco()
 {
