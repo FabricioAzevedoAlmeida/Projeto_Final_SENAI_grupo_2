@@ -94,6 +94,10 @@ void setup()
   configurarSensor();
   conectarWiFi();
   configTime(10800, 0, "b.ntp.br");
+
+  while(time(nullptr) < 100000) 
+    delay(100);
+
   configurarMQTT();
   conectarMQTT();
   registrarCallbackMensagem(tratarMensagemRecebida);
