@@ -216,9 +216,25 @@ void publicarDadosAnalise()
   JsonDocument doc;
   JsonObject analise = doc["analise"].to<JsonObject>();
 
+  analise["temperatura"] = temperatura;
+  analise["umidade"]     = umidade;
+  analise["ruido"]       = ruido;
+  analise["comandoAr"]   = comandoAr;
+  analise["alertaSom"]   = alertaSom;
+  analise["eco"]         = eco;
+  analise["timestamp"]   = timestamp;
+
   debugInfo("==============================");
   debugInfo("Publicando dados de analise...");
   debugInfo("==============================");
+  debugInfo("Temperatura: " + String(temperatura) + "°C");
+  debugInfo("Umidade: "     + String(umidade)     + "%");
+  debugInfo("Ruido: "       + String(ruido)        + "dB");
+  debugInfo("ComandoAr: "   + String(comandoAr));
+  debugInfo("AlertaSom: "   + String(alertaSom));
+  debugInfo("Eco: "         + String(eco ? "SIM" : "NÃO"));
+  debugInfo("Timestamp: "   + String(timestamp));
+  debugInfo("=============================================================");
 
   bool alteracao = false;
 
