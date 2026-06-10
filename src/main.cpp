@@ -113,81 +113,29 @@ void publicarDadosAnalise()
   JsonDocument doc;
   JsonObject analise = doc["analise"].to<JsonObject>();
 
+  analise["temperatura"] = temperatura;
+  analise["umidade"]     = umidade;
+  analise["ruido"]       = ruido;
+  analise["comandoAr"]   = comandoAr;
+  analise["alertaSom"]   = alertaSom;
+  analise["eco"]         = eco;
+  analise["timestamp"]   = timestamp;
+
   debugInfo("==============================");
   debugInfo("Publicando dados de analise...");
   debugInfo("==============================");
+  debugInfo("Temperatura: " + String(temperatura) + "°C");
+  debugInfo("Umidade: "     + String(umidade)     + "%");
+  debugInfo("Ruido: "       + String(ruido)        + "dB");
+  debugInfo("ComandoAr: "   + String(comandoAr));
+  debugInfo("AlertaSom: "   + String(alertaSom));
+  debugInfo("Eco: "         + String(eco ? "SIM" : "NÃO"));
+  debugInfo("Timestamp: "   + String(timestamp));
+  debugInfo("=============================================================");
 
-  bool alteracao = false;
-  if (abs(temperatura - PastPublishedTemperatura) >= 1)
-  {
-    analise["temperatura"] = temperatura;
-    PastPublishedTemperatura = temperatura;
-    debugInfo("Temperatura: " + String(temperatura) + "°C");
-    alteracao = true;
-  }
-  else
-    debugInfo("Temperatura Não foi publicado pois a variacão foi desconsideravel.");
-  if (abs(umidade - PastPublishedUmidade) >= 1)
-  {
-    analise["umidade"] = umidade;
-    PastPublishedUmidade = umidade;
-    debugInfo("Umidade: " + String(umidade) + "%");
-    alteracao = true;
-  }
-  else
-    debugInfo("Umidade não foi publicado pois a variacão foi desconsideravel.");
-  if (abs(ruido - PastPublishedRuido) >= 1)
-  {
-    analise["ruido"] = ruido;
-    PastPublishedRuido = ruido;
-    debugInfo("Ruido: " + String(ruido) + "dB");
-    alteracao = true;
-  }
-  else
-    debugInfo("Ruido não foi publicado pois a variacão foi desconsideravel.");
-  if (comandoAr != PastPublishedComandoAr)
-  {
-    analise["comandoAr"] = comandoAr;
-    PastPublishedComandoAr = comandoAr;
-    debugInfo("ComandoAr: " + String(comandoAr));
-    alteracao = true;
-  }
-  else
-    debugInfo("ComandoAr não foi publicado pois não houve alteração");
-  if (alertaSom != PastPublishedAlertaSom)
-  {
-    analise["alertaSom"] = alertaSom;
-    PastPublishedAlertaSom = alertaSom;
-    debugInfo("AlertaSom: " + String(alertaSom));
-    alteracao = true;
-  }
-  else
-    debugInfo("AlertaSom não foi publicado pois não houve alteração");
-  if (eco != PastPublishedEco)
-  {
-    analise["eco"] = eco;
-    PastPublishedEco = eco;
-    debugInfo("Eco: " + String(eco));
-    alteracao = true;
-  }
-  else
-    debugInfo("Eco não foi publicado pois não houve alteração");
-
-  if (alteracao)
-  {
-    analise["timestamp"] = timestamp;
-    debugInfo("Timestamp: " + String(timestamp));
-    debugInfo("=============================================================");
-    char buffer[256];
-
-    serializeJson(doc, buffer, sizeof(buffer)); // (JSON, onde vai ser escrito, tamanho maximo)
-    publicarMensagem(obterTopicoPublicacao(0), buffer);
-  }
-  else
-  {
-    debugInfo("Nada foi publicado pois não houve nenhuma alterção");
-    debugInfo("=============================================================");
-  }
+  char buffer[256];
+  serializeJson(doc, buffer, sizeof(buffer));
+  publicarMensagem(obterTopicoPublicacao(0), buffer);
 }
 
 void ESPSync()
