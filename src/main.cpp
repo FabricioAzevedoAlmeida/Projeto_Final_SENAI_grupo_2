@@ -239,28 +239,21 @@ void publicarDadosAnalise()
   bool alteracao = false;
 
   analise["temperatura"] = temperatura;
-  PastPublishedTemperatura = temperatura;
   debugInfo("Temperatura: " + String(temperatura) + "°C");
 
   analise["umidade"] = umidade;
-  PastPublishedUmidade = umidade;
   debugInfo("Umidade: " + String(umidade) + "%");
 
   analise["ruido"] = ruido;
-  PastPublishedRuido = ruido;
   debugInfo("Ruido: " + String(ruido) + "dB");
 
   analise["comandoAr"] = comandoAr;
-  PastPublishedComandoAr = comandoAr;
   debugInfo("ComandoAr: " + String(comandoAr));
 
   analise["alertaSom"] = alertaSom;
-  PastPublishedAlertaSom = alertaSom;
   debugInfo("AlertaSom: " + String(alertaSom));
-  alteracao = true;
 
   analise["eco"] = eco;
-  PastPublishedEco = eco;
   debugInfo("Eco: " + String(eco));
 
   analise["timestamp"] = timestamp;
