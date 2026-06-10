@@ -12,7 +12,6 @@ Sistema embarcado para monitoramento ambiental em tempo real com dois ESP32 comu
 - [Dependências](#dependências)
 - [Instalação e configuração](#instalação-e-configuração)
 - [Estrutura do projeto](#estrutura-do-projeto)
-- [Exemplos de uso](#exemplos-de-uso)
 - [Payload MQTT](#payload-mqtt)
 - [Níveis de debug](#níveis-de-debug)
 
@@ -149,19 +148,12 @@ Repita o processo alterando `MQTT_CLIENT_ID`, `TOPICOS_PUBLICAR` e `TOPICOS_RECE
 ```
 .
 ├── src/
-│   ├── main.cpp              # Setup, loop e lógica principal de análise
-│   ├── ESP32Connectivity.cpp # Gerenciador não-bloqueante de WiFi + MQTT (v3.0.0)
-│   ├── WiFiManager.cpp       # Abstração de conexão WiFi 
-│   ├── MqttManager.cpp       # Abstração de cliente MQTT 
+│   ├── main.cpp              # Setup, loop e lógica principal de análise 
 │   ├── KY038.cpp             # Driver do sensor de som KY-038
-│   └── DebugManager.cpp      # Sistema de log por níveis via Serial
+│   └── secrets.cpp           # ⚠️ NÃO versionar — credenciais locais
 ├── include/
-│   ├── secrets.h             # ⚠️ NÃO versionar — credenciais locais
-│   ├── DebugManager.h        # ferramenta usada para identificar e analisar erros (Bugs) em um programa 
-│   ├── ESP32Connectivity.h   # Gerenciamento não-bloqueante de WiFi e MQTT para ESP32.
-│   ├── KY038.h               # Biblioteca utilizada para a configuração do sensor de ruído 
-│   ├── MqttManager.h         # É um arquivo de cabeçalho para organizar o código relacionado ao MQTT 
-│   └── WiFiManager.h         # É uma biblioteca que facilita a configuração do Wi-Fi
+│   ├── secrets.h             # É uma biblioteca que facilita a configuração do credenciais
+│   └──  KY038.h               # Biblioteca utilizada para a configuração do sensor de ruído 
 └── README.md
 ```
 
