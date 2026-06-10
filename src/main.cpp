@@ -1,10 +1,11 @@
 #include <Arduino.h>
-#include <ArduinoJson.h>
 #include <DHT.h>
+#include <ArduinoJson.h>
+#include <DebugManager.h>
+#include <ESP32Connectivity.h>
+#include "secrets.h"
 #include "KY038.h"
-#include "DebugManager.h"
-#include "WiFiManager.h"
-#include "MqttManager.h"
+
 //==========================================
 //
 //      Declaração de constantes globais
@@ -39,14 +40,6 @@ bool eco = false;
 
 bool syncRealizado = false;
 
-static float PastPublishedTemperatura = 0.0;
-static float PastPublishedUmidade = 0.0;
-static float PastPublishedRuido = 0.0;
-
-static int PastPublishedComandoAr = 0;
-static int PastPublishedAlertaSom = 0;
-static bool PastPublishedEco = false;
-
 unsigned long ultimaPublicacao = 0;
 
 unsigned long inicioRuidoA = 0;
@@ -72,17 +65,127 @@ bool mensagemRecebidaOposto = false;
 
 DHT dht(PIN_DHT, TIPO_DHT);
 SENSOR sensor(PIN_MIC);
+ConfigTopicos topicos = {
+    TOPICOS_PUBLICAR, TOTAL_TOPICOS_PUBLICAR,
+    TOPICOS_RECEBER, TOTAL_TOPICOS_RECEBER};
+//==========================================
+//
+//   Declaracao Callbacks de Rede
+//
+//==========================================
 
+void aoConectarWiFi() { debugInfo("WiFi conectado com sucesso! IP: " + WiFi.localIP().toString()); }
+void aoDesconectarWiFi() { debugAviso("Conexão WiFi perdida. Entrando em modo offline..."); }
+void aoConectarMQTT() { debugInfo(">>> Conectado ao Broker/AWS com sucesso!"); }
+void aoDesconectarMQTT() { debugErro(">>> Conexão com a AWS interrompida."); }
 
-void infoLadoOposto()
+void ESPSync()
 {
+  JsonDocument doc;
+  JsonObject analise = doc["analise"].to<JsonObject>();
 
+  char buffer[256];
+  serializeJson(doc, buffer, sizeof(buffer));
+  conectividade.publicar(1, buffer);
+
+  debugInfo("=================================================");
+  debugInfo("Publicando dados de analise para sincronização...");
+  debugInfo("=================================================");
+  debugInfo("Temperatura: " + String(temperatura) + "°C");
+  debugInfo("Umidade: " + String(umidade) + "%");
+  debugInfo("Ruido: " + String(ruido) + "dB");
+  debugInfo("ComandoAr: " + String(comandoAr));
+  debugInfo("AlertaSom: " + String(alertaSom));
+  debugInfo("Eco: " + String(eco));
   debugInfo("=============================================================");
-  debugInfo("A Temperatura no lado oposto é: " + String(temperaturaOposto));
-  debugInfo("A Umidade no lado oposto é: " + String(umidadeOposto));
-  debugInfo("O Ruido no lado oposto é: " + String(ruidoOposto));
-  debugInfo("=============================================================");
+
+  analise["temperatura"] = temperatura;
+  analise["umidade"] = umidade;
+  analise["ruido"] = ruido;
+  analise["comandoAr"] = comandoAr;
+  analise["alertaSom"] = alertaSom;
+  analise["eco"] = eco;
 }
+
+void aoReceberMensagem(const char *topico, const String &mensagem)
+{
+  JsonDocument doc;
+  DeserializationError erro = deserializeJson(doc, mensagem);
+  if (erro)
+  {
+    debugErro("Erro ao interpretar JSON do lado oposto");
+    return;
+  }
+
+  JsonObject analise = doc["analise"];
+
+  if (analise["temperatura"].is<float>())
+  {
+    float tempVerificacao = analise["temperatura"].as<float>();
+    if (tempVerificacao > 0.5)
+    {
+      temperaturaOposto = tempVerificacao;
+      mensagemRecebidaOposto = true;
+    }
+  }
+
+  if (analise["umidade"].is<float>())
+  {
+    float umidVerificacao = analise["umidade"].as<float>();
+    if (umidVerificacao > 0.5)
+    {
+      umidadeOposto = umidVerificacao;
+    }
+  }
+
+  if (analise["ruido"].is<float>())
+  {
+    ruidoOposto = analise["ruido"].as<float>();
+  }
+
+  if (String(topico) == conectividade.topicoRecebimento(1))
+  {
+    if (!syncRealizado)
+    {
+      syncRealizado = true;
+      ESPSync();
+      debugInfo("Sincronização inicial realizada entre os ESPs.");
+    }
+    return;
+  }
+
+  debugInfo("===== DADOS RECEBIDOS =====");
+  debugInfo("Temperatura lado oposto: " + String(temperaturaOposto) + "°C");
+  debugInfo("Umidade lado oposto: " + String(umidadeOposto) + "%");
+  debugInfo("Ruido lado oposto: " + String(ruidoOposto) + "dB");
+}
+
+void configConectivity()
+{
+  conectividade.configurarBufferMQTT(1024);
+  conectividade.registrarCallbackWiFiConectado(aoConectarWiFi);
+  conectividade.registrarCallbackWiFiDesconectado(aoDesconectarWiFi);
+  conectividade.registrarCallbackMQTTConectado(aoConectarMQTT);
+  conectividade.registrarCallbackMQTTDesconectado(aoDesconectarMQTT);
+  conectividade.registrarCallbackMensagem(aoReceberMensagem);
+
+  if (USAR_AWS_IOT)
+  {
+    conectividade.beginAWS(
+        {WIFI_SSID, WIFI_SENHA},
+        {AWS_IOT_ENDPOINT, AWS_IOT_PORT, AWS_IOT_CLIENT_ID, AWS_CERT_CA, AWS_CERT_CRT, AWS_CERT_PRIVATE},
+        topicos);
+  }
+  else
+  {
+    conectividade.beginTLS(
+        {WIFI_SSID, WIFI_SENHA},
+        {MQTT_BROKER, MQTT_PORTA, MQTT_CLIENT_ID, MQTT_USUARIO, MQTT_SENHA},
+        {MQTT_CERTIFICADO_CA},
+        topicos);
+  }
+}
+
 bool SensorUmidadeTemperatura()
 {
   umidade = dht.readHumidity();
@@ -118,105 +221,39 @@ void publicarDadosAnalise()
   debugInfo("==============================");
 
   bool alteracao = false;
-  if (abs(temperatura - PastPublishedTemperatura) >= 1)
-  {
-    analise["temperatura"] = temperatura;
-    PastPublishedTemperatura = temperatura;
-    debugInfo("Temperatura: " + String(temperatura) + "°C");
-    alteracao = true;
-  }
-  else
-    debugInfo("Temperatura Não foi publicado pois a variacão foi desconsideravel.");
-  if (abs(umidade - PastPublishedUmidade) >= 1)
-  {
-    analise["umidade"] = umidade;
-    PastPublishedUmidade = umidade;
-    debugInfo("Umidade: " + String(umidade) + "%");
-    alteracao = true;
-  }
-  else
-    debugInfo("Umidade não foi publicado pois a variacão foi desconsideravel.");
-  if (abs(ruido - PastPublishedRuido) >= 1)
-  {
-    analise["ruido"] = ruido;
-    PastPublishedRuido = ruido;
-    debugInfo("Ruido: " + String(ruido) + "dB");
-    alteracao = true;
-  }
-  else
-    debugInfo("Ruido não foi publicado pois a variacão foi desconsideravel.");
-  if (comandoAr != PastPublishedComandoAr)
-  {
-    analise["comandoAr"] = comandoAr;
-    PastPublishedComandoAr = comandoAr;
-    debugInfo("ComandoAr: " + String(comandoAr));
-    alteracao = true;
-  }
-  else
-    debugInfo("ComandoAr não foi publicado pois não houve alteração");
-  if (alertaSom != PastPublishedAlertaSom)
-  {
-    analise["alertaSom"] = alertaSom;
-    PastPublishedAlertaSom = alertaSom;
-    debugInfo("AlertaSom: " + String(alertaSom));
-    alteracao = true;
-  }
-  else
-    debugInfo("AlertaSom não foi publicado pois não houve alteração");
-  if (eco != PastPublishedEco)
-  {
-    analise["eco"] = eco;
-    PastPublishedEco = eco;
-    debugInfo("Eco: " + String(eco));
-    alteracao = true;
-  }
-  else
-    debugInfo("Eco não foi publicado pois não houve alteração");
-
-  if (alteracao)
-  {
-    analise["timestamp"] = timestamp;
-    debugInfo("Timestamp: " + String(timestamp));
-    debugInfo("=============================================================");
-    char buffer[256];
-
-    serializeJson(doc, buffer, sizeof(buffer)); // (JSON, onde vai ser escrito, tamanho maximo)
-    publicarMensagem(obterTopicoPublicacao(0), buffer);
-  }
-  else
-  {
-    debugInfo("Nada foi publicado pois não houve nenhuma alterção");
-    debugInfo("=============================================================");
-  }
-}
-
-void ESPSync()
-{
-  JsonDocument doc;
-  JsonObject analise = doc["analise"].to<JsonObject>();
-
-  debugInfo("=================================================");
-  debugInfo("Publicando dados de analise para sincronização...");
-  debugInfo("=================================================");
-  debugInfo("Temperatura: " + String(temperatura) + "°C");
-  debugInfo("Umidade: " + String(umidade) + "%");
-  debugInfo("Ruido: " + String(ruido) + "dB");
-  debugInfo("ComandoAr: " + String(comandoAr));
-  debugInfo("AlertaSom: " + String(alertaSom));
-  debugInfo("Eco: " + String(eco));
-  debugInfo("=============================================================");
 
   analise["temperatura"] = temperatura;
+  PastPublishedTemperatura = temperatura;
+  debugInfo("Temperatura: " + String(temperatura) + "°C");
+
   analise["umidade"] = umidade;
+  PastPublishedUmidade = umidade;
+  debugInfo("Umidade: " + String(umidade) + "%");
+
   analise["ruido"] = ruido;
+  PastPublishedRuido = ruido;
+  debugInfo("Ruido: " + String(ruido) + "dB");
+
   analise["comandoAr"] = comandoAr;
+  PastPublishedComandoAr = comandoAr;
+  debugInfo("ComandoAr: " + String(comandoAr));
+
   analise["alertaSom"] = alertaSom;
+  PastPublishedAlertaSom = alertaSom;
+  debugInfo("AlertaSom: " + String(alertaSom));
+  alteracao = true;
+
   analise["eco"] = eco;
+  PastPublishedEco = eco;
+  debugInfo("Eco: " + String(eco));
 
-  char buffer[256];
+  analise["timestamp"] = timestamp;
+  debugInfo("Timestamp: " + String(timestamp));
+  debugInfo("=============================================================");
 
-  serializeJson(doc, buffer, sizeof(buffer)); // (JSON, onde vai ser escrito, tamanho maximo)
-  publicarMensagem(obterTopicoPublicacao(1), buffer);
+  char buffer[512];
+  serializeJson(doc, buffer, sizeof(buffer));
+  conectividade.publicar(0, buffer);
 }
 
 void diferencaTemp()
@@ -392,75 +429,27 @@ void alertaSomEco()
   }
 }
 
-void tratarMensagemRecebida(const char *topico, const String &mensagem)
-{
-  JsonDocument doc;
-  DeserializationError erro = deserializeJson(doc, mensagem);
-
-  if (erro)
-  {
-    debugErro("Erro ao interpretar JSON do lado oposto");
-    return;
-  }
-
-  mensagemRecebidaOposto = true;
-  if (doc["analise"].containsKey("temperatura"))
-    temperaturaOposto = doc["analise"]["temperatura"].as<float>();
-  if (doc["analise"].containsKey("umidade"))
-    umidadeOposto = doc["analise"]["umidade"].as<float>();
-  if (doc["analise"].containsKey("ruido"))
-    ruidoOposto = doc["analise"]["ruido"].as<float>();
-
-  if (strcmp(topico, obterTopicoRecebimento(1)) == 0)
-  {
-    if (!syncRealizado)
-      ESPSync();
-    syncRealizado = true;
-    debugInfo("Sincronização realizada entre os ESPs.");
-
-    diferencaTemp();
-    alertaSomEco();
-    return;
-  }
-
-  diferencaTemp();
-  alertaSomEco();
-
-  debugInfo("===== DADOS RECEBIDOS =====");
-  debugInfo("Dados do ESP32 oposto recebidos, topico: " + String(topico));
-  debugInfo("Temperatura lado oposto: " + String(temperaturaOposto) + "°C");
-  debugInfo("Umidade lado oposto: " + String(umidadeOposto) + "%");
-  debugInfo("Ruido lado oposto: " + String(ruidoOposto) + "dB");
-  debugInfo("Aviso para equiparar o ar: " + String(comandoAr));
-  debugInfo("Aviso de ruido alto: " + String(alertaSom));
-  debugInfo("Aviso para modo economia: " + String(eco));
-}
-
-
 void setup()
 {
-  configurarDebug();
+  configurarDebug(DEBUG_NIVEL_INICIAL, PINO_HABILITA_DEBUG_COMPLETO);
   configurarSensor();
-  conectarWiFi();
+  configConectivity();
   configTime(10800, 0, "b.ntp.br");
 
-  while (time(nullptr) < 100000)
-    delay(100);
+  while (time(nullptr) < 100000 || !conectividade.mqttConectado())
+  {
+    conectividade.update();
+  }
 
-  configurarMQTT();
-  conectarMQTT();
-  registrarCallbackMensagem(tratarMensagemRecebida);
   SensorUmidadeTemperatura();
   ruido = sensor.getPercentage(100);
   ESPSync();
+  debugInfo("Setup concluído.");
 }
 
 void loop()
 {
-  garantirWiFiConectado();
-  garantirMQTTConectado();
-  MQTTLoop();
-
+  conectividade.update();
   if (millis() - ultimaPublicacao >= INTERVALO)
   {
     ruido = sensor.getPercentage(100);
@@ -469,10 +458,11 @@ void loop()
     {
       diferencaTemp();
       publicarDadosAnalise();
-      infoLadoOposto();
     }
     else
       debugErro("Erro ao ler sensores, publicacão nao acontecerá");
     ultimaPublicacao = millis();
+    if (conectividade.mensagensNaFila() > 0)
+      debugAviso("Modo Offline! Mensagens na fila: " + String(conectividade.mensagensNaFila()));
   }
 }
