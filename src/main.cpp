@@ -127,6 +127,18 @@ void loop()
 {
     conectividade.update();
     ruido = sensor.getPercentage(100);
+
+    // ── Verificação Global de Timeout do Lado Oposto ──
+    const unsigned long timeoutOposto = 30000;
+    if(mensagemRecebidaOposto && millis() - ultimaMensagemOposto > timeoutOposto){
+        alertaSomOposto = 0;
+        ecoOposto = false;
+        temperaturaOposto = 0.0;
+        umidadeOposto = 0.0;
+        ruidoOposto = 0.0;
+        mensagemRecebidaOposto = false; 
+        debugAviso("Timeout global do lado oposto — desativando modo cruzado por inatividade.");
+    }
     
     diferencaTemp();
     alertaSomEco();
@@ -275,6 +287,7 @@ void ESPSync()
     analise["eco"]         = eco;
 
     char buffer[512];
+    memset(buffer, 0, sizeof(buffer));
     serializeJson(doc, buffer, sizeof(buffer));
 
     debugInfo("=================================================");
@@ -333,7 +346,6 @@ void alertaSomEco()
     const unsigned long duracaoRuido = 300;
     const unsigned long duracaoEco   = 900000;
     const int           limiteSom    = 70;
-    const unsigned long timeoutOposto = 30000;
 
     static unsigned long inicioRuido   = 0;
     static unsigned long inicioSilencio = 0;
@@ -343,13 +355,6 @@ void alertaSomEco()
     static bool ecoAnterior       = false;
 
     unsigned long agora = millis();
-
-    // Timeout do lado oposto — zera se ficou 30s sem receber nada
-    if(mensagemRecebidaOposto && agora - ultimaMensagemOposto > timeoutOposto){
-        alertaSomOposto = 0;
-        ecoOposto = false;
-        debugAviso("Timeout do lado oposto — zerando alertaSomOposto e ecoOposto.");
-    }
 
     // Deste lado — processa sempre
     if(ruido >= limiteSom){
@@ -374,7 +379,7 @@ void alertaSomEco()
     else
         alertaSom = 0;
 
-    // Modo economia ativo apenas se ambos os lados estiverem vazios
+    // Modo economia ativo apenas se ambos os lados estiverem vazios e conectados
     if(mensagemRecebidaOposto)
         eco = ecoLocal && ecoOposto;
     else
@@ -461,6 +466,7 @@ void publicarDadosAnalise()
         debugInfo("=============================================================");
         
         char buffer[512];
+        memset(buffer, 0, sizeof(buffer));
         serializeJson(doc, buffer, sizeof(buffer));
         conectividade.publicar(0, buffer);
     } else {
