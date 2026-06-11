@@ -290,6 +290,7 @@ void ESPSync()
     analise["eco"] = eco;
 
     char buffer[512];
+    memset(buffer, 0, sizeof(buffer));
     serializeJson(doc, buffer, sizeof(buffer));
 
     debugInfo("=================================================");
