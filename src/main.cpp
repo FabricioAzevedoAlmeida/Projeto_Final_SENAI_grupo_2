@@ -7,8 +7,8 @@
 #include <Arduino.h>
 #include <DHT.h>
 #include <ArduinoJson.h>
-#include "KY038.h"
-#include "DebugManager.h"
+#include <KY038.h>
+#include <DebugManager.h>
 
 #define CONNECTIVITY_FILA_SLOTS 15
 #define CONNECTIVITY_FILA_PAYLOAD_MAX 512
@@ -416,13 +416,9 @@ void alertaSomEco()
 
     // Modo economia ativo apenas se ambos os lados estiverem vazios
     if (mensagemRecebidaOposto)
-    {
         eco = ecoLocal && ecoOposto;
-    }
     else
-    {
         eco = false;
-    }
 
     // Logs de alteração no Monitor Serial
     if (alertaSom != alertaSomAnterior)
