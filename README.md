@@ -69,6 +69,7 @@ A conectividade é gerenciada pela classe `ESP32Connectivity`, que implementa m�
 | `ArduinoJson`        | ≥ 7.x         | Serialização do payload MQTT            |
 | `PubSubClient`       | ≥ 2.8         | Cliente MQTT (dependência da biblioteca acima) |
 | `WiFi` (ESP32)       | built-in      | Conectividade WiFi                      |
+| `KY038`              | ≥ 1.0         | Biblioteca utilizada para a configuração do sensor de ruído |
 
 ---
 
@@ -93,12 +94,13 @@ lib_deps =
     knolleary/PubSubClient
 ```
 
-**3. Crie o arquivo `secrets.h`**
+**3. Crie o arquivo `secrets.cpp`**
 
-Este arquivo **não está versionado** (adicione ao `.gitignore`). Crie-o na pasta `src/` ou `include/` com o seguinte conteúdo:
+Este arquivo **não está versionado** (adicione ao `.gitignore`). Crie-o na pasta `src/` 
+com o seguinte conteúdo:
 
 ```cpp
-// secrets.h
+// secrets.cpp
 
 // ── WiFi ─────────────────────────────────
 #define WIFI_SSID     "sua-rede"
@@ -148,12 +150,12 @@ Repita o processo alterando `MQTT_CLIENT_ID`, `TOPICOS_PUBLICAR` e `TOPICOS_RECE
 ```
 .
 ├── src/
-│   ├── main.cpp              # Setup, loop e lógica principal de análise 
-│   ├── KY038.cpp             # Driver do sensor de som KY-038
-│   └── secrets.cpp           # ⚠️ NÃO versionar — credenciais locais
+│   ├── main.cpp         # Setup, loop e lógica principal de análise 
+│   ├── KY038.cpp        # Driver do sensor de som KY-038
+│   └── secrets.cpp      # ⚠️ NÃO versionar — credenciais locais
 ├── include/
-│   ├── secrets.h             # É uma biblioteca que facilita a configuração do credenciais
-│   └──  KY038.h               # Biblioteca utilizada para a configuração do sensor de ruído 
+│   ├── secrets.h        # É uma biblioteca que facilita a configuração do credenciais
+│   └──  KY038.h         # Biblioteca utilizada para a configuração do sensor de ruído 
 └── README.md
 ```
 
@@ -195,18 +197,10 @@ Campos omitidos quando a variação é inferior a 1 unidade desde a última publ
 
 ## Níveis de debug
 
-O nível é definido em tempo de execução pelo pino `PINO_HABILITA_DEBUG_COMPLETO`:
-
 | Pino        | Nível ativo   | O que é exibido                            |
 |-------------|---------------|--------------------------------------------|
 | HIGH (pull-up) | `DEBUG_TUDO` | INFO, AVISO, VERBOSE, TUDO + ERRO         |
 | LOW            | `DEBUG_ERRO` | Apenas mensagens de erro                  |
-
-Para alterar o nível via código:
-
-```cpp
-nivelDebugAtual = DEBUG_TUDO;  // ou DEBUG_ERRO
-```
 
 ---
 
