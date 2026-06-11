@@ -12,6 +12,10 @@ Sistema embarcado para monitoramento ambiental em tempo real com dois ESP32 comu
 - [Dependências](#dependências)
 - [Instalação e configuração](#instalação-e-configuração)
 - [Estrutura do projeto](#estrutura-do-projeto)
+- [Fluxo de funcionamento](#fluxo-de-funcionamento)
+- [Constantes de comportamento](#constantes-de-comportamento)
+- [Lógica de análise](#lógica-de-análise)
+- [Sincronização entre ESPs](#sincronização-entre-esps)
 - [Payload MQTT](#payload-mqtt)
 - [Níveis de debug](#níveis-de-debug)
 
@@ -82,21 +86,26 @@ git clone https://github.com/FabricioAzevedoAlmeida/Projeto_Final_SENAI_grupo_2.
 cd Projeto_Final_SENAI_grupo_2
 ```
 
-**2. Instale a biblioteca ConectividadeESP32**
+**2. Instale a biblioteca ConectividadeESP32 e KY038**
 
 Via PlatformIO — adicione ao `platformio.ini`:
 
 ```ini
 lib_deps =
-    https://github.com/professorThiago/ConectividadeESP32.git
-    adafruit/DHT sensor library
-    bblanchon/ArduinoJson
-    knolleary/PubSubClient
+    https://github.com/professorThiago/ESP32Connectivity
+    adafruit/DHT sensor library @ ^1.4.6
+    adafruit/Adafruit Unified Sensor @ ^1.1.14
+    https://github.com/bblanchon/ArduinoJson
+    https://github.com/wKaelzx/Sensor-ruido
 ```
+
+> A classe `ESP32Connectivity` (v3.0.0) é uma **biblioteca externa** instalada via `lib_deps` — veja [ConectividadeESP32](https://github.com/professorThiago/ConectividadeESP32).
+
+> A classe `KY038` é uma **biblioteca externa** instalada via `lib_deps` — veja [KY038](https://github.com/wKaelzx/Sensor-ruido).
 
 **3. Crie o arquivo `secrets.cpp`**
 
-Este arquivo **não está versionado** (adicione ao `.gitignore`). Crie-o na pasta `src/` 
+Este arquivo **não está versionado** (adicione ao `.gitignore`). Crie-o na pasta `src/`
 com o seguinte conteúdo:
 
 ```cpp
@@ -137,9 +146,9 @@ const char* TOPICOS_RECEBER[]  = { "sala/B/analise", "sala/B/sync" };
 #define AWS_CERT_PRIVATE  ""
 ```
 
-**3. Compile e faça upload**
+**4. Compile e faça upload**
 
-**4. Configure o segundo ESP32**
+**5. Configure o segundo ESP32**
 
 Repita o processo alterando `MQTT_CLIENT_ID`, `TOPICOS_PUBLICAR` e `TOPICOS_RECEBER` para os valores do lado B.
 
@@ -151,19 +160,100 @@ Repita o processo alterando `MQTT_CLIENT_ID`, `TOPICOS_PUBLICAR` e `TOPICOS_RECE
 .
 ├── src/
 │   ├── main.cpp         # Setup, loop e lógica principal de análise 
-│   ├── KY038.cpp        # Driver do sensor de som KY-038
 │   └── secrets.cpp      # ⚠️ NÃO versionar — credenciais locais
 ├── include/
-│   ├── secrets.h        # É uma biblioteca que facilita a configuração do credenciais
-│   └──  KY038.h         # Biblioteca utilizada para a configuração do sensor de ruído 
+│   └──  secrets.h       # É uma biblioteca que facilita a configuração do credenciais
 └── README.md
 ```
 
-> A classe `ESP32Connectivity` (v3.0.0) é uma **biblioteca externa** instalada via `lib_deps` — veja [ConectividadeESP32](https://github.com/professorThiago/ConectividadeESP32).
+---
+
+## Fluxo de funcionamento
+
+```
+setup()
+  ├── Inicializa DHT22 e KY-038
+  ├── Sincroniza horário via NTP (b.ntp.br)
+  ├── Configura callbacks de WiFi e MQTT
+  ├── Conecta ao AWS IoT Core (beginAWS)
+  ├── Faz leitura inicial dos sensores
+  └── Executa ESPSync() — publica estado inicial no tópico de sync
+
+loop()  [não-bloqueante, executa continuamente]
+  ├── conectividade.update()  — gerencia WiFi/MQTT em background
+  ├── Lê ruído via KY-038 (getPercentage)
+  ├── diferencaTemp()         — calcula comandoAr com base no lado oposto
+  ├── alertaSomEco()          — avalia alertaSom e modo ECO
+  └── A cada 10 s: lê DHT22 e chama publicarDadosAnalise()
+
+aoReceberMensagem()  [callback MQTT]
+  ├── Valida e desserializa o JSON recebido
+  ├── Atualiza variáveis do lado oposto (temperatura, umidade, ruído, alertaSom, eco)
+  └── Se for tópico de sync: executa handshake de sincronização entre ESPs
+```
 
 ---
 
-## Payload MQTT
+## Constantes de comportamento
+
+Estas constantes estão definidas diretamente no `main.cpp` e controlam o comportamento do sistema em tempo real:
+
+| Constante | Valor | Descrição |
+|-----------|-------|-----------|
+| `intervaloPublicacaoMs` | `10000` ms | Intervalo entre cada ciclo de leitura e publicação |
+| `CONNECTIVITY_FILA_SLOTS` | `15` | Máximo de mensagens na fila offline |
+| `CONNECTIVITY_FILA_PAYLOAD_MAX` | `512` bytes | Tamanho máximo de cada mensagem na fila |
+| `limiteSom` | `70` % | Limiar de atividade sonora para acionar alerta |
+| `duracaoRuido` | `300` ms | Tempo mínimo de ruído contínuo para confirmar alerta |
+| `duracaoEco` | `900000` ms (15 min) | Tempo de silêncio para ativar modo ECO |
+| Threshold temperatura | `4` °C | Diferença mínima entre lados para acionar `comandoAr` |
+| Threshold publicação (delta) | `1` unidade | Variação mínima em qualquer campo para disparar publicação |
+
+---
+
+## Lógica de análise
+
+### Desequilíbrio térmico (`diferencaTemp`)
+
+Compara `valorTemperatura` (local) com `temperaturaOposto` (recebido via MQTT). A função só é executada após receber pelo menos uma mensagem do lado oposto.
+
+| Condição | `comandoAr` |
+|----------|-------------|
+| Diferença < 4 °C | `0` — equilibrado |
+| Local > oposto em ≥ 4 °C | `1` — este lado mais quente |
+| Oposto > local em ≥ 4 °C | `2` — lado oposto mais quente |
+
+### Alerta de som e modo ECO (`alertaSomEco`)
+
+O ruído local é amostrado continuamente via `sensor.getPercentage(100)`. O alerta só é confirmado após `duracaoRuido` (300 ms) consecutivos acima de `limiteSom` (70%). O cruzamento com o estado do lado oposto determina o valor final de `alertaSom`:
+
+| Situação | `alertaSom` |
+|----------|-------------|
+| Nenhum lado com alerta | `0` |
+| Apenas este lado | `1` |
+| Apenas lado oposto | `2` |
+| Ambos os lados | `3` |
+
+O modo ECO (`eco = true`) é ativado somente quando **ambos** os lados estão em silêncio por ≥ 15 min.
+
+### Publicação baseada em delta
+
+`publicarDadosAnalise()` só inclui no JSON os campos que variaram ≥ 1 unidade desde a última publicação. Campos sem variação são omitidos, reduzindo o tráfego MQTT. O `timestamp` é adicionado somente se ao menos um campo foi alterado.
+
+---
+
+## Sincronização entre ESPs
+
+Ao iniciar, cada ESP32 publica seus dados no tópico de sync (`sala/X/sync`) e aguarda a resposta do lado oposto. O handshake funciona da seguinte forma:
+
+1. ESP A sobe e publica sync → ESP B ainda não está online, mensagem fica na fila.
+2. ESP B sobe, publica seu sync → ESP A recebe, marca `syncRealizado = true` e responde com sync.
+3. ESP B recebe o sync de A → ambos têm os dados iniciais do lado oposto antes do primeiro ciclo de publicação regular.
+
+Caso os dois ESPs subam simultaneamente, um mecanismo de debounce (2000 ms) evita eco de sync.
+
+---
+
 
 As mensagens são publicadas em JSON no seguinte formato:
 
@@ -204,11 +294,11 @@ Campos omitidos quando a variação é inferior a 1 unidade desde a última publ
 
 ---
 
-## 👥Grupo
+## 👥 Grupo
 
- - Alisson Almeida Gomes
- - Fabricio Azevedo Almeida
- - Heloísa Tomé de Araujo
- - Kael Fontes Araujo
- - Luis Otávio Coelho ferreira
- - Victor Bueno
+- [Alisson Almeida Gomes](https://github.com/alissonalmeida-dev7)
+- [Fabricio Azevedo Almeida](https://github.com/FabricioAzevedoAlmeida)
+- [Heloísa Tomé de Araujo](https://github.com/hyopsywan)
+- [Kael Fontes Araujo](https://github.com/wKaelzx)
+- [Luis Otávio Coelho Ferreira](https://github.com/luisoferreira)
+- [Victor Bueno](https://github.com/Vbueno04)
