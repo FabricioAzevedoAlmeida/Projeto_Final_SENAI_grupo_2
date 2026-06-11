@@ -206,8 +206,8 @@ Estas constantes estão definidas diretamente no `main.cpp` e controlam o compor
 | `limiteSom` | `70` % | Limiar de atividade sonora para acionar alerta |
 | `duracaoRuido` | `300` ms | Tempo mínimo de ruído contínuo para confirmar alerta |
 | `duracaoEco` | `900000` ms (15 min) | Tempo de silêncio para ativar modo ECO |
-| Threshold temperatura | `4` °C | Diferença mínima entre lados para acionar `comandoAr` |
-| Threshold publicação (delta) | `1` unidade | Variação mínima em qualquer campo para disparar publicação |
+| Limite temperatura | `4` °C | Diferença mínima entre lados para acionar `comandoAr` |
+| Limite publicação | `1` unidade | Variação mínima em qualquer campo para disparar publicação |
 
 ---
 
