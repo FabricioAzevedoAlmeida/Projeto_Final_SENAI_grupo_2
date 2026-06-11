@@ -128,15 +128,9 @@ void loop()
         ultimaPublicacao = millis();
 
         if (SensorUmidadeTemperatura())
-        {
             publicarDadosAnalise();
-        }
-
         else
-        {
             debugErro("Erro ao ler sensores, publicação não acontecerá.");
-        }
-
         if (conectividade.mensagensNaFila() > 0)
             debugAviso("Modo Offline! Mensagens na fila: " + String(conectividade.mensagensNaFila()));
     }
@@ -145,6 +139,22 @@ void loop()
 // ── Callback de Mensagens MQTT ─────────────────────
 void aoReceberMensagem(const char *topico, const String &mensagem)
 {
+    if (millis() < 5000)
+    {
+        debugErro("JSON Inválido ao receber a mensagem.");
+        return;
+    }
+
+    String mensagemTratada = mensagem;
+    mensagemTratada.trim();
+    if (mensagemTratada.startsWith("E") || !mensagemTratada.startsWith("{"))
+    {
+        debugErro("JSON Inválido ao receber a mensagem.");
+        return;
+    }
+
+    static unsigned long ultimoSyncEnviado = 0;
+
     JsonDocument doc;
     DeserializationError erro = deserializeJson(doc, mensagem);
     if (erro)
@@ -191,6 +201,12 @@ void aoReceberMensagem(const char *topico, const String &mensagem)
 
     if (String(topico) == conectividade.topicoRecebimento(1))
     {
+        // Se nós enviamos um sync há menos de 2000ms, ignora o sync recebido para não gerar eco
+        if (millis() - ultimoSyncEnviado < 2000)
+        {
+            debugAviso("Sync simultâneo detectado no mesmo intervalo de boot. Ignorando eco.");
+            return;
+        }
         debugInfo("===== DADOS SYNC RECEBIDOS =====");
         debugInfo("Temperatura lado oposto: " + String(temperaturaOposto) + "°C");
         debugInfo("Umidade lado oposto: " + String(umidadeOposto) + "%");
@@ -204,6 +220,7 @@ void aoReceberMensagem(const char *topico, const String &mensagem)
         {
             syncRealizado = true;
             ESPSync();
+            ultimoSyncEnviado = millis();
             debugInfo("Sincronização inicial realizada entre os ESPs.");
         }
         else if (!syncRespondido)
@@ -212,6 +229,8 @@ void aoReceberMensagem(const char *topico, const String &mensagem)
             diferencaTemp();
             alertaSomEco();
             ESPSync();
+            ultimoSyncEnviado = millis();
+
             debugInfo("Sync recebido, lado oposto reiniciou. Respondendo com dados atuais.");
             debugInfo("===== ESTADO ATUAL APÓS RECALCULO =====");
             debugInfo("ComandoAr: " + String(comandoAr));
@@ -520,6 +539,8 @@ void publicarDadosAnalise()
         debugInfo("=============================================================");
 
         char buffer[512];
+        memset(buffer, 0, sizeof(buffer));
+        
         serializeJson(doc, buffer, sizeof(buffer));
         conectividade.publicar(0, buffer);
         return;
