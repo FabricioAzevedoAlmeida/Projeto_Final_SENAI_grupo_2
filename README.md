@@ -178,8 +178,9 @@ setup()
 ├── Inicializa DHT22 e KY-038
 ├── Configura callbacks de WiFi e MQTT (Buffer alocado: 1024 bytes para JSON)
 ├── Conecta ao AWS IoT Core (Porta Segura 8883 via TLS/SSL)
-├── 🔒 Bloqueio de Inicialização: Impede o avanço enquanto o WiFi/MQTT não conectar 
-│   e o tempo Unix (time(nullptr)) for menor que 100000 (Garante sincronismo NTP correto)
+├── 🔄 Inicialização Assíncrona: Libera o avanço imediato para o loop principal.
+│   As conexões Wi-Fi, MQTT e a primeira sincronização do relógio via NTP ocorrem totalmente em segundo plano (background),
+│   garantindo que o processamento local dos sensores funcione mesmo se o dispositivo iniciar sem internet.
 ├── Faz leitura inicial dos sensores
 └── Executa ESPSync() — publica estado inicial no tópico de sync
 
@@ -264,7 +265,7 @@ Caso os dois ESPs subam simultaneamente, um mecanismo de debounce (2000 ms) evit
 O firmware foi projetado seguindo preceitos de sistemas embarcados robustos e tolerantes a falhas reais de infraestrutura de campo:
 
 1. **Watchdog de Timeout de Comunicação (30 segundos):** Caso um dos ESP32 sofra uma queda abrupta de energia ou queime, o broker MQTT não notifica o parceiro de forma ativa. Para evitar que o ESP ativo tome decisões automatizadas com base em "dados congelados/fantasmas", o loop monitora a janela temporal de inatividade do vizinho. Passados 30 segundos sem novas mensagens válidas, a memória local do parceiro é zerada e o modo cruzado é desativado preventivamente.
-2. **Buffer Estático de Fila Offline:** Durante quedas de conexão Wi-Fi ou instabilidades na AWS, as mensagens JSON geradas pelas análises não são perdidas. Elas são alocadas dinamicamente em uma fila na RAM estática (`CONNECTIVITY_FILA_SLOTS 15`), suportando payloads de até 512 bytes por slot. Assim que a pilha de rede restabelece o handshake TLS com a nuvem, o chip realiza o esvaziamento sequencial (*flush*), transmitindo o histórico acumulado com os carimbos de hora (*timestamps*) originais da coleta.
+2. **Buffer Estático de Fila Offline:** Em caso de queda de rede, o chip armazena até 15 payloads JSON na memória RAM. Para evitar a poluição do banco de dados na nuvem com a data padrão de 1970 (caso o dispositivo seja ligado já sem internet), a geração e o armazenamento das mensagens na fila aguardam de forma inteligente a validação do primeiro sincronismo de hora via NTP em background.
 3. **Filtro de Simultaneidade Antiloop:** Caso ambos os microcontroladores reiniciem exatamente no mesmo milissegundo, uma trava lógica de 2000 ms impede que o envio automático de pacotes `ESPSync()` gere um loop infinito de ecos de rede e sobrecarregue o processamento dos chips.
 
 ---
