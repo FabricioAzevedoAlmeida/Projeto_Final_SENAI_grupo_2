@@ -2,6 +2,7 @@
  * @file main.cpp
  * @brief Monitoramento de Ruído e Clima com Escuta Cruzada.
  * * Envio contínuo e completo com Logs de Debug das próprias publicações.
+ * * Versão com Inicialização Assíncrona Tolerante a Falhas.
  */
 
 #include <Arduino.h>
@@ -54,6 +55,7 @@ bool eco = false;
 // ── Variáveis de controle de Sync ─────────────────────────────
 bool syncRealizado = false;
 bool syncRespondido = false;
+bool relogioSincronizado = false; // Flag para controle assíncrono do NTP
 
 // ── Controle de tempo ─────────────────────────────────────────
 const uint32_t intervaloPublicacaoMs = 10000;
@@ -111,22 +113,31 @@ void setup()
         );
     }
 
-    while(time(nullptr) < 100000 || !conectividade.mqttConectado()) {
-        conectividade.update();
-    }
-
+    // Inicialização assíncrona: sensores realizam a primeira leitura imediatamente
     SensorUmidadeTemperatura();
     ruido = sensor.getPercentage(100);
-    ESPSync();
 
-    debugInfo("Setup concluído.");
+    // Executa o primeiro Sync apenas se a rede e o tempo já estiverem prontos no boot
+    if (conectividade.mqttConectado() && time(nullptr) > 100000) {
+        relogioSincronizado = true;
+        ESPSync();
+    }
+
+    debugInfo("Setup concluído em modo assíncrono.");
 }
 
 // ── Loop Principal ───────────────────────────────────────────
 void loop() 
 {
     conectividade.update();
-    ruido = sensor.getPercentage(100);
+    ruido = sensor.getPercentage(100); // Garante amostragem contínua local
+
+    // Verifica em background se o relógio sincronizou com o NTP (Epoch UNIX válida)
+    if (!relogioSincronizado && time(nullptr) > 100000) {
+        relogioSincronizado = true;
+        debugInfo(">>> Relógio sincronizado com o NTP com sucesso! <<<");
+        ESPSync(); // Força a sincronização inicial com o outro ESP
+    }
 
     // ── Verificação Global de Timeout do Lado Oposto ──
     const unsigned long timeoutOposto = 30000;
@@ -146,10 +157,17 @@ void loop()
     if(millis() - ultimaPublicacao >= intervaloPublicacaoMs) {
         ultimaPublicacao = millis();
 
-        if(SensorUmidadeTemperatura())
-            publicarDadosAnalise();
-        else
+        if(SensorUmidadeTemperatura()) {
+            // Só publica para a AWS se houver conexão ativa E o relógio estiver correto
+            if (relogioSincronizado && conectividade.mqttConectado()) {
+                publicarDadosAnalise();
+            } else {
+                debugAviso("Aviso: Dados lidos com sucesso, mas retenção de envio ativa (Aguardando rede/NTP).");
+            }
+        }
+        else {
             debugErro("Erro ao ler sensores, publicação não acontecerá.");
+        }
 
         if(conectividade.mensagensNaFila() > 0)
             debugAviso("Modo Offline! Mensagens na fila: " + String(conectividade.mensagensNaFila()));
