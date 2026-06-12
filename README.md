@@ -109,41 +109,44 @@ Este arquivo **não está versionado** (adicione ao `.gitignore`). Crie-o na pas
 com o seguinte conteúdo:
 
 ```cpp
-// secrets.cpp
+// include/secrets.h
+
+#ifndef SECRETS_H
+#define SECRETS_H
 
 // ── WiFi ─────────────────────────────────
 #define WIFI_SSID     "sua-rede"
 #define WIFI_SENHA    "sua-senha"
 
-// ── MQTT ─────────────────────────────────
+// ── MQTT Padrão ──────────────────────────
 #define MQTT_BROKER      "seu-broker"
 #define MQTT_PORTA       8883
 #define MQTT_CLIENT_ID   "esp32-sala-A"
-#define MQTT_USUARIO     ""   // deixe vazio se não usar autenticação
+#define MQTT_USUARIO     "" 
 #define MQTT_SENHA       ""
 
-// ── Tópicos ──────────────────────────────
+// ── Tópicos (Matriz Espelhada) ───────────
 #define TOTAL_TOPICOS_PUBLICAR  2
 #define TOTAL_TOPICOS_RECEBER   2
 const char* TOPICOS_PUBLICAR[] = { "sala/A/analise", "sala/A/sync" };
 const char* TOPICOS_RECEBER[]  = { "sala/B/analise", "sala/B/sync" };
 
-// ── Modos opcionais ───────────────────────
-#define USAR_AWS_IOT     false
-#define MQTT_USAR_TLS    false
+// ── Modos de Conexão ──────────────────────
+#define USAR_AWS_IOT     true     // Ativa a pilha AWS IoT Core com criptografia TLS
+#define MQTT_USAR_TLS    true
 #define MQTT_CERTIFICADO_CA ""
 
-// ── Debug ────────────────────────────────
-#define PINO_HABILITA_DEBUG_COMPLETO  0   // GPIO com pull-up; LOW = debug completo
-#define DEBUG_NIVEL_INICIAL           DEBUG_ERRO
-
-// ── AWS IoT (preencha somente se USAR_AWS_IOT = true) ─────────
-#define AWS_IOT_ENDPOINT  ""
+// ── AWS IoT Core Certificados (Obrigatório se USAR_AWS_IOT = true) ──
+#define AWS_IOT_ENDPOINT  "xxxxxxxxxxxxxx-ats.iot.us-east-1.amazonaws.com"
 #define AWS_IOT_PORT      8883
-#define AWS_IOT_CLIENT_ID ""
-#define AWS_CERT_CA       ""
-#define AWS_CERT_CRT      ""
-#define AWS_CERT_PRIVATE  ""
+#define AWS_IOT_CLIENT_ID "esp32-sala-A"
+
+// Certificados de autenticação mútua (X.509)
+const char AWS_CERT_CA[] PROGMEM = "-----BEGIN CERTIFICATE-----\n...\n-----END CERTIFICATE-----\n";
+const char AWS_CERT_CRT[] PROGMEM = "-----BEGIN CERTIFICATE-----\n...\n-----END CERTIFICATE-----\n";
+const char AWS_CERT_PRIVATE[] PROGMEM = "-----BEGIN RSA PRIVATE KEY-----\n...\n-----END RSA PRIVATE KEY-----\n";
+
+#endif
 ```
 
 **4. Compile e faça upload**
@@ -172,24 +175,28 @@ Repita o processo alterando `MQTT_CLIENT_ID`, `TOPICOS_PUBLICAR` e `TOPICOS_RECE
 
 ```
 setup()
-  ├── Inicializa DHT22 e KY-038
-  ├── Sincroniza horário via NTP (b.ntp.br)
-  ├── Configura callbacks de WiFi e MQTT
-  ├── Conecta ao AWS IoT Core (beginAWS)
-  ├── Faz leitura inicial dos sensores
-  └── Executa ESPSync() — publica estado inicial no tópico de sync
+├── Inicializa DHT22 e KY-038
+├── Configura callbacks de WiFi e MQTT (Buffer alocado: 1024 bytes para JSON)
+├── Conecta ao AWS IoT Core (Porta Segura 8883 via TLS/SSL)
+├── 🔒 Bloqueio de Inicialização: Impede o avanço enquanto o WiFi/MQTT não conectar 
+│   e o tempo Unix (time(nullptr)) for menor que 100000 (Garante sincronismo NTP correto)
+├── Faz leitura inicial dos sensores
+└── Executa ESPSync() — publica estado inicial no tópico de sync
 
-loop()  [não-bloqueante, executa continuamente]
-  ├── conectividade.update()  — gerencia WiFi/MQTT em background
-  ├── Lê ruído via KY-038 (getPercentage)
-  ├── diferencaTemp()         — calcula comandoAr com base no lado oposto
-  ├── alertaSomEco()          — avalia alertaSom e modo ECO
-  └── A cada 10 s: lê DHT22 e chama publicarDadosAnalise()
+loop()  [não-bloqueante, executa continuamente via millis()]
+├── conectividade.update() — gerencia WiFi/MQTT in background
+├── Lê ruído via KY-038 (getPercentage com amostragem de 100 leituras contínuas)
+├── ⏱️ Watchdog de Timeout: Se o lado oposto sumir por > 30s, limpa a memória por segurança
+├── diferencaTemp()         — calcula comandoAr com base no desvio térmico absoluto
+├── alertaSomEco()          — avalia alertaSom e modo ECO combinados
+└── A cada 10 s: lê DHT22 e chama publicarDadosAnalise()
 
-aoReceberMensagem()  [callback MQTT]
-  ├── Valida e desserializa o JSON recebido
-  ├── Atualiza variáveis do lado oposto (temperatura, umidade, ruído, alertaSom, eco)
-  └── Se for tópico de sync: executa handshake de sincronização entre ESPs
+aoReceberMensagem()  [callback MQTT assíncrono]
+├── 🛡️ Filtro Antifolha: Rejeita mensagens nos primeiros 5s de boot (descarta retained messages)
+├── Valida formato (rejeita strings corrompidas ou pacotes que não iniciem em "{")
+├── 🔍 Tipagem Segura via is<float>(): Ignora o campo se o JSON vier incompleto, evitando zerar a memória local
+├── Atualiza variáveis do lado oposto (temperatura, umidade, ruído, alertaSom, eco)
+└── Se for tópico de sync: executa handshake de sincronização tripla (Reset/Sync) entre ESPs
 ```
 
 ---
@@ -251,6 +258,14 @@ Ao iniciar, cada ESP32 publica seus dados no tópico de sync (`sala/X/sync`) e a
 3. ESP B recebe o sync de A → ambos têm os dados iniciais do lado oposto antes do primeiro ciclo de publicação regular.
 
 Caso os dois ESPs subam simultaneamente, um mecanismo de debounce (2000 ms) evita eco de sync.
+
+## 🛡️ Resiliência Industrial e Tolerância a Falhas
+
+O firmware foi projetado seguindo preceitos de sistemas embarcados robustos e tolerantes a falhas reais de infraestrutura de campo:
+
+1. **Watchdog de Timeout de Comunicação (30 segundos):** Caso um dos ESP32 sofra uma queda abrupta de energia ou queime, o broker MQTT não notifica o parceiro de forma ativa. Para evitar que o ESP ativo tome decisões automatizadas com base em "dados congelados/fantasmas", o loop monitora a janela temporal de inatividade do vizinho. Passados 30 segundos sem novas mensagens válidas, a memória local do parceiro é zerada e o modo cruzado é desativado preventivamente.
+2. **Buffer Estático de Fila Offline:** Durante quedas de conexão Wi-Fi ou instabilidades na AWS, as mensagens JSON geradas pelas análises não são perdidas. Elas são alocadas dinamicamente em uma fila na RAM estática (`CONNECTIVITY_FILA_SLOTS 15`), suportando payloads de até 512 bytes por slot. Assim que a pilha de rede restabelece o handshake TLS com a nuvem, o chip realiza o esvaziamento sequencial (*flush*), transmitindo o histórico acumulado com os carimbos de hora (*timestamps*) originais da coleta.
+3. **Filtro de Simultaneidade Antiloop:** Caso ambos os microcontroladores reiniciem exatamente no mesmo milissegundo, uma trava lógica de 2000 ms impede que o envio automático de pacotes `ESPSync()` gere um loop infinito de ecos de rede e sobrecarregue o processamento dos chips.
 
 ---
 
