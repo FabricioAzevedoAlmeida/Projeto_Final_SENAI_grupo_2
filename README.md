@@ -4,6 +4,17 @@ Sistema embarcado para monitoramento ambiental em tempo real com dois ESP32 comu
 
 ---
 
+## 👥 Grupo
+
+- [Alisson Almeida Gomes](https://github.com/alissonalmeida-dev7)
+- [Fabricio Azevedo Almeida](https://github.com/FabricioAzevedoAlmeida)
+- [Heloísa Tomé de Araujo](https://github.com/hyopsywan)
+- [Kael Fontes Araujo](https://github.com/wKaelzx)
+- [Luis Otávio Coelho Ferreira](https://github.com/luisoferreira)
+- [Victor Bueno](https://github.com/Vbueno04)
+
+---
+
 ## 📋 Índice
 
 - [Visão Geral](#visão-geral)
@@ -106,48 +117,7 @@ lib_deps =
 **3. Crie o arquivo `secrets.cpp`**
 
 Este arquivo **não está versionado** (adicione ao `.gitignore`). Crie-o na pasta `src/`
-com o seguinte conteúdo:
-
-```cpp
-// include/secrets.h
-
-#ifndef SECRETS_H
-#define SECRETS_H
-
-// ── WiFi ─────────────────────────────────
-#define WIFI_SSID     "sua-rede"
-#define WIFI_SENHA    "sua-senha"
-
-// ── MQTT Padrão ──────────────────────────
-#define MQTT_BROKER      "seu-broker"
-#define MQTT_PORTA       8883
-#define MQTT_CLIENT_ID   "esp32-sala-A"
-#define MQTT_USUARIO     "" 
-#define MQTT_SENHA       ""
-
-// ── Tópicos (Matriz Espelhada) ───────────
-#define TOTAL_TOPICOS_PUBLICAR  2
-#define TOTAL_TOPICOS_RECEBER   2
-const char* TOPICOS_PUBLICAR[] = { "sala/A/analise", "sala/A/sync" };
-const char* TOPICOS_RECEBER[]  = { "sala/B/analise", "sala/B/sync" };
-
-// ── Modos de Conexão ──────────────────────
-#define USAR_AWS_IOT     true     // Ativa a pilha AWS IoT Core com criptografia TLS
-#define MQTT_USAR_TLS    true
-#define MQTT_CERTIFICADO_CA ""
-
-// ── AWS IoT Core Certificados (Obrigatório se USAR_AWS_IOT = true) ──
-#define AWS_IOT_ENDPOINT  "xxxxxxxxxxxxxx-ats.iot.us-east-1.amazonaws.com"
-#define AWS_IOT_PORT      8883
-#define AWS_IOT_CLIENT_ID "esp32-sala-A"
-
-// Certificados de autenticação mútua (X.509)
-const char AWS_CERT_CA[] PROGMEM = "-----BEGIN CERTIFICATE-----\n...\n-----END CERTIFICATE-----\n";
-const char AWS_CERT_CRT[] PROGMEM = "-----BEGIN CERTIFICATE-----\n...\n-----END CERTIFICATE-----\n";
-const char AWS_CERT_PRIVATE[] PROGMEM = "-----BEGIN RSA PRIVATE KEY-----\n...\n-----END RSA PRIVATE KEY-----\n";
-
-#endif
-```
+com o conteúdo do `secrets-exemplo.cpp`:
 
 **4. Compile e faça upload**
 
@@ -162,10 +132,11 @@ Repita o processo alterando `MQTT_CLIENT_ID`, `TOPICOS_PUBLICAR` e `TOPICOS_RECE
 ```
 .
 ├── src/
-│   ├── main.cpp         # Setup, loop e lógica principal de análise 
-│   └── secrets.cpp      # ⚠️ NÃO versionar — credenciais locais
+│   ├── main.cpp                 # Setup, loop e lógica principal de análise 
+│   └── secrets.cpp              # ⚠️ NÃO versionar — credenciais locais
+│   └── secrets-exemplo.cpp      # Exemplo para usar no secrets.cpp
 ├── include/
-│   └──  secrets.h       # É uma biblioteca que facilita a configuração do credenciais
+│   └──  secrets.h               # É uma biblioteca que facilita a configuração do credenciais
 └── README.md
 ```
 
@@ -307,14 +278,3 @@ Campos omitidos quando a variação é inferior a 1 unidade desde a última publ
 |-------------|---------------|--------------------------------------------|
 | HIGH (pull-up) | `DEBUG_TUDO` | INFO, AVISO, VERBOSE, TUDO + ERRO         |
 | LOW            | `DEBUG_ERRO` | Apenas mensagens de erro                  |
-
----
-
-## 👥 Grupo
-
-- [Alisson Almeida Gomes](https://github.com/alissonalmeida-dev7)
-- [Fabricio Azevedo Almeida](https://github.com/FabricioAzevedoAlmeida)
-- [Heloísa Tomé de Araujo](https://github.com/hyopsywan)
-- [Kael Fontes Araujo](https://github.com/wKaelzx)
-- [Luis Otávio Coelho Ferreira](https://github.com/luisoferreira)
-- [Victor Bueno](https://github.com/Vbueno04)
